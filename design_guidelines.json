@@ -1,0 +1,156 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast)",
+  "emotional_tone": "Technical, Professional, Fast, Reliable",
+  "design_concept": "A high-efficiency, clutter-free operations dashboard tailored for an IT repair shop. It uses a stark monochrome foundation (whites, grays, blacks) offset by a single, high-contrast 'Technical Apple Green' accent. This ensures maximum legibility, fast scanning, and a modern, authoritative feel.",
+  "typography": {
+    "headings": {
+      "family": "Outfit",
+      "weights": ["500", "600", "700"],
+      "letter_spacing": "tracking-tight",
+      "usage": "Use for all page titles, card headers, and major data points."
+    },
+    "body": {
+      "family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "usage": "Use for all table data, form labels, descriptions, and secondary text."
+    },
+    "mono": {
+      "family": "JetBrains Mono",
+      "weights": ["400"],
+      "usage": "Use for repair ticket IDs, amounts in the cash register, and technical data."
+    },
+    "scale": {
+      "h1": "text-3xl sm:text-4xl",
+      "h2": "text-2xl sm:text-3xl",
+      "h3": "text-xl sm:text-2xl",
+      "h4": "text-lg sm:text-xl",
+      "body": "text-sm sm:text-base",
+      "small": "text-xs",
+      "overline": "text-xs uppercase tracking-[0.2em] font-semibold"
+    }
+  },
+  "colors": {
+    "primary": {
+      "default": "#84CC16",
+      "hover": "#65A30D",
+      "active": "#4D7C0F",
+      "foreground": "#FFFFFF",
+      "description": "Technical Apple Green (Tailwind lime-500/600). Use exclusively for primary CTAs (Create Ticket, Finish Repair, Generate PDF), active states, and key success metrics."
+    },
+    "background": {
+      "app": "#F8FAFC",
+      "card": "#FFFFFF",
+      "sidebar": "#0F172A"
+    },
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#64748B",
+      "muted": "#94A3B8",
+      "inverse": "#FFFFFF"
+    },
+    "border": {
+      "default": "#E2E8F0",
+      "focus": "#84CC16"
+    },
+    "status": {
+      "in_progress": {
+        "bg": "#FEF08A",
+        "text": "#854D0E",
+        "border": "#FACC15"
+      },
+      "completed": {
+        "bg": "#D9F99D",
+        "text": "#3F6212",
+        "border": "#84CC16"
+      },
+      "error": {
+        "bg": "#FECACA",
+        "text": "#991B1B",
+        "border": "#F87171"
+      }
+    }
+  },
+  "layout_and_spacing": {
+    "container": "w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "grid_system": {
+      "dashboard_cards": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6",
+      "forms": "grid grid-cols-1 md:grid-cols-2 gap-6"
+    },
+    "spacing": {
+      "card_padding": "p-6",
+      "section_gap": "gap-8 md:gap-12"
+    },
+    "radius": {
+      "card": "rounded-lg",
+      "button": "rounded-md",
+      "input": "rounded-md"
+    },
+    "shadows": {
+      "card": "shadow-sm",
+      "dropdown": "shadow-lg",
+      "hover": "shadow-md"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#84CC16] hover:bg-[#65A30D] text-white font-medium px-4 py-2 rounded-md transition-colors shadow-sm",
+      "secondary": "bg-white border border-slate-200 hover:bg-slate-50 text-slate-900 font-medium px-4 py-2 rounded-md transition-colors",
+      "ghost": "hover:bg-slate-100 text-slate-700 font-medium px-4 py-2 rounded-md transition-colors",
+      "danger": "bg-red-50 hover:bg-red-100 text-red-600 font-medium px-4 py-2 rounded-md transition-colors"
+    },
+    "cards": {
+      "default": "bg-white border border-slate-200 rounded-lg shadow-sm p-6",
+      "metric": "bg-white border border-slate-200 rounded-lg shadow-sm p-6 flex flex-col justify-between"
+    },
+    "inputs": {
+      "default": "w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#84CC16] focus:border-transparent transition-shadow",
+      "search": "w-full pl-10 pr-4 py-2 border border-slate-300 rounded-md bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#84CC16] transition-all"
+    },
+    "tables": {
+      "container": "w-full border-collapse text-sm text-left",
+      "header": "bg-slate-50 border-y border-slate-200 text-slate-500 font-medium py-3 px-4",
+      "row": "border-b border-slate-100 hover:bg-slate-50/50 transition-colors",
+      "cell": "py-3 px-4 text-slate-900"
+    },
+    "badges": {
+      "base": "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border"
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "stroke_width": "2",
+    "usage": "Use 16px (w-4 h-4) for inline text/buttons, 24px (w-6 h-6) for standard UI, 32px+ for empty states. Always ensure they align optically with adjacent text."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NDg3MzQ4NHww&ixlib=rb-4.1.0&q=85",
+        "category": "avatar",
+        "description": "Professional headshot for the logged-in user avatar (Shop Owner/Technician)."
+      }
+    ]
+  },
+  "interactions_and_motion": {
+    "hover": "All interactive elements MUST have a visible hover state. Cards translate-y slightly, buttons change background/opacity.",
+    "focus": "Keyboard focus MUST be visible using ring-2 ring-lime-500 ring-offset-2.",
+    "transitions": "Use Tailwind's 'transition-all duration-200 ease-in-out' for smooth state changes on buttons, inputs, and cards.",
+    "empty_states": "Use an icon (lucide-react) + title + descriptive text + primary action button to guide the user when a table or list is empty."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure white text on Apple Green meets 3:1 contrast for large text or use a slightly darker green (#65A30D) if needed for smaller text. Alternatively, use dark text on light green backgrounds.",
+    "data_testid": "ALL interactive elements (buttons, inputs, row actions, tabs) MUST include a 'data-testid' attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "Install and use 'lucide-react' for all icons. Do not use random icon libraries.",
+    "Install Google Fonts: Outfit (Headings), IBM Plex Sans (Body), JetBrains Mono (Code/Numbers).",
+    "Implement Shadcn UI for core components: Table, Button, Input, Select, Dialog, Tabs, Card, Badge.",
+    "The layout should feature a sticky left sidebar (or bottom nav on mobile) and a main content area with a top header.",
+    "The dashboard should immediately display 'Journal de caisse' summary, 'Réparations en cours' table, and quick actions.",
+    "Ensure 'Recherche intelligente avec tolérance aux fautes' is implemented via a fuzzy search library like 'fuse.js' on the frontend or appropriate backend logic.",
+    "For the 'Fiches de réparation', implement the specific buttons requested: 'Créer fiche', 'Terminer', 'Générer PDF', 'Envoyer au client'.",
+    "Use JetBrains Mono for monetary values and repair ticket IDs to give a precise, technical feel.",
+    "Do NOT use 'Inter' for headings. Strictly use 'Outfit' or fallback to 'system-ui'.",
+    "Mobile-friendly is a hard requirement. Ensure tables can scroll horizontally on mobile, or switch to a card-based list view for clients/repairs on small screens."
+  ]
+}
