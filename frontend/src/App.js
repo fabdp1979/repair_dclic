@@ -63,7 +63,7 @@ function Sidebar({ isOpen, setIsOpen }) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-2 space-y-1">
+        <nav className="p-2 space-y-1 pb-20">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || 
               (item.href !== "/" && location.pathname.startsWith(item.href));
@@ -87,7 +87,7 @@ function Sidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* Company info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 pointer-events-none">
           <p className="text-xs text-slate-500">DCLIC INFORMATIQUE</p>
           <p className="text-xs text-slate-600">05.55.73.57.20</p>
         </div>
