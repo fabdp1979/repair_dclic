@@ -1,34 +1,192 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
-}
-
-.App-header {
-    background-color: #0f0f10;
+/* Main app styles */
+.sidebar {
+    background-color: #0F172A;
+    color: white;
     min-height: 100vh;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #94A3B8;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+    margin: 0.25rem 0.5rem;
+}
+
+.sidebar-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.sidebar-link.active {
+    background-color: #84CC16;
+    color: white;
+}
+
+.sidebar-link.active:hover {
+    background-color: #65A30D;
+}
+
+/* Card hover effect */
+.card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Metric card */
+.metric-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0F172A;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #64748B;
+    margin-top: 0.25rem;
+}
+
+/* Table styles */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background-color: #F8FAFC;
+    border-top: 1px solid #E2E8F0;
+    border-bottom: 1px solid #E2E8F0;
+    color: #64748B;
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem;
+    text-align: left;
+}
+
+.data-table td {
+    border-bottom: 1px solid #F1F5F9;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+}
+
+.data-table tr:hover {
+    background-color: rgba(248, 250, 252, 0.5);
+}
+
+/* Empty state */
+.empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+    padding: 3rem;
+    text-align: center;
 }
 
-.App-link {
-    color: #61dafb;
+.empty-state-icon {
+    color: #94A3B8;
+    margin-bottom: 1rem;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
+.empty-state-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #0F172A;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-description {
+    color: #64748B;
+    font-size: 0.875rem;
+    max-width: 20rem;
+}
+
+/* Search input */
+.search-input {
+    width: 100%;
+    padding: 0.5rem 1rem 0.5rem 2.5rem;
+    border: 1px solid #E2E8F0;
+    border-radius: 0.5rem;
+    background-color: #F8FAFC;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #84CC16;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.1);
+}
+
+/* Badge */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid;
+}
+
+/* Mobile bottom nav */
+@media (max-width: 768px) {
+    .mobile-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #0F172A;
+        display: flex;
+        justify-content: space-around;
+        padding: 0.5rem;
+        z-index: 50;
+        border-top: 1px solid #1E293B;
     }
-    to {
-        transform: rotate(360deg);
+    
+    .mobile-nav-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.5rem;
+        color: #94A3B8;
+        font-size: 0.625rem;
+        text-decoration: none;
+    }
+    
+    .mobile-nav-link.active {
+        color: #84CC16;
+    }
+    
+    .mobile-nav-link svg {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
     }
 }
