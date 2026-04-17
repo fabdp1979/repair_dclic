@@ -1,10 +1,10 @@
-# DCLIC Informatique - Application de Gestion
+# DCLIC Informatique - Application de Gestion v2
 
 ## Résumé du projet
-Application web de gestion pour vendeur réparateur informatique avec 3 modules principaux.
+Application web de gestion pour vendeur réparateur informatique avec modules complets.
 
-## Date de création
-31 Mars 2026
+## Date de mise à jour
+17 Avril 2026
 
 ## Coordonnées entreprise
 - **Nom**: DCLIC INFORMATIQUE
@@ -13,99 +13,100 @@ Application web de gestion pour vendeur réparateur informatique avec 3 modules 
 - **Email**: contact@d-clic-informatique.fr
 
 ## Architecture technique
-- **Backend**: FastAPI (Python)
-- **Base de données**: MongoDB (pas SQLite comme initialement prévu - plus scalable)
+- **Backend**: FastAPI (Python) + MongoDB
 - **Frontend**: React + Tailwind CSS + Shadcn UI
-- **Design**: Vert pomme technique (#84CC16)
-- **PDF**: ReportLab
-- **Export Excel**: OpenPyXL
+- **Design**: Vert pomme technique (#84CC16) - fond blanc/gris clair
+- **PDF**: ReportLab avec QR Code
+- **Export Excel**: OpenPyXL (avec onglets mensuels)
 - **Email**: Resend (à configurer)
 
 ## Fonctionnalités implémentées
 
 ### Module 1: Clients ✅
-- [x] Création de client (nom, prénom, téléphone, email, adresse)
-- [x] Modification de client
-- [x] Suppression de client
-- [x] Recherche intelligente avec tolérance aux fautes (Fuse.js + Levenshtein)
-- [x] ID client auto-généré
+- [x] CRUD complet (créer, modifier, supprimer)
+- [x] Recherche fuzzy
+- [x] Page détail client avec historique
+- [x] Création rapide depuis fiche réparation
 
-### Module 2: Réparations ✅
-- [x] Création de fiche (numéro auto type REP-2026-XXXX)
-- [x] Modification de fiche
-- [x] Suppression de fiche
+### Module 2: Réparations ✅ (REFONTE COMPLÈTE)
+- [x] Numérotation auto REP-YYYY-XXXX
+- [x] **Bloc 1 - Identité/Dépôt**: Date, heure, client
+- [x] **Bloc 2 - Matériel fourni**: 18 cases à cocher (PC portable, PC fixe, sacoche, imprimante, etc.)
+- [x] **Bloc 3 - Option urgence**: +25€ réparation prioritaire
+- [x] **Bloc 4 - Technique**: Mot de passe, description panne, observations client
+- [x] **Bloc 5 - Diagnostic/Intervention**: Diagnostic, action, prix, statuts
+- [x] PDF Client (avec QR code et conditions de réparation)
+- [x] PDF Interne (avec mot de passe visible)
+- [x] Lien de suivi unique + QR code
+- [x] Envoi email automatique
+- [x] Export Excel
+- [x] Filtres par statut
+
+### Module 3: Commandes client ✅ (NOUVEAU)
+- [x] Numérotation cmd-DD-MM-YYYY-XXXX
+- [x] Champs: désignation, référence, fournisseur, quantité, prix achat/vente
+- [x] 7 statuts: En attente, Commandé, En attente réception, Reçu, Livré, Réglé, Annulé
+- [x] Boutons de changement rapide de statut
 - [x] Liaison client
-- [x] Champs: marque, modèle, mot de passe, problème, diagnostic, action, prix, statut
-- [x] Génération PDF Client (sans mot de passe)
-- [x] Génération PDF Interne (avec mot de passe)
-- [x] Envoi email automatique (configuration Resend requise)
-- [x] Filtrage par statut (En cours / Terminé)
-- [x] Recherche par nom client ou numéro
-- [x] Export Excel
 
-### Module 3: Journal de caisse ✅
-- [x] Entrées de caisse (encaissements)
-- [x] Sorties de caisse (dépenses)
-- [x] Mode de paiement (espèces, CB, chèque, virement)
-- [x] Filtrage par dates
-- [x] Calcul automatique du solde
-- [x] Export Excel
+### Module 4: Encaissement ✅ (NOUVEAU)
+- [x] Vue quotidienne des recettes uniquement
+- [x] Types: Vente, Réparation, Autre recette
+- [x] Modes: Espèces, CB, Chèque, Virement
+- [x] Résumé par mode de paiement
+- [x] Filtre par date
+
+### Module 5: Journal de caisse ✅
+- [x] Entrées et sorties
+- [x] Export Excel avec onglets mensuels
+- [x] Colonnes A-Q selon le format existant
+- [x] Filtres par dates
+
+### Module 6: Suivi client public ✅ (NOUVEAU)
+- [x] Page publique accessible via lien unique
+- [x] QR code sur le PDF client
+- [x] 5 statuts visibles: Enregistrée, Diagnostic, En attente, Réparation, Prêt
+- [x] Aucune donnée sensible affichée
 
 ### Dashboard ✅
-- [x] Statistiques globales (clients, réparations, en cours, terminées)
-- [x] Résumé caisse du jour
-- [x] Liste des réparations récentes
-- [x] Actions rapides
+- [x] Statistiques globales
+- [x] Réparations en cours
+- [x] Commandes en attente
+- [x] Caisse du jour
 
-## Configuration requise
+## Conditions de réparation intégrées
+- Prise en charge du matériel
+- Délais
+- Devis (15€ si refusé)
+- Tarifs (forfait 60€ TTC)
+- Règlement au comptant
+- Garantie (3 mois MO, 1 an pièces)
+- Abandon (6 mois + 1 jour)
+- Contestations (Tribunal de Brive)
 
-### Variables d'environnement Backend (.env)
-```
-MONGO_URL="mongodb://localhost:27017"
-DB_NAME="test_database"
-CORS_ORIGINS="*"
-RESEND_API_KEY=<votre_clé_resend>
-SENDER_EMAIL=onboarding@resend.dev
-```
-
-### Configuration Email (Resend)
+## Configuration email Resend
 1. Créer un compte sur https://resend.com
-2. Générer une clé API (commence par `re_...`)
-3. Ajouter la clé dans RESEND_API_KEY
-4. Optionnel: vérifier un domaine pour l'envoi
+2. Générer une clé API
+3. Ajouter `RESEND_API_KEY=re_xxxxx` dans `/app/backend/.env`
+4. Redémarrer le backend
 
-## Backlog / Prochaines fonctionnalités
+## URLs
+- **Application**: https://fiche-repair.preview.emergentagent.com
+- **API**: https://fiche-repair.preview.emergentagent.com/api
+- **Suivi client**: https://fiche-repair.preview.emergentagent.com/suivi/{tracking_id}
 
-### P0 - Configuration email
-- [ ] Configurer Resend avec une vraie clé API
-- [ ] Vérifier domaine email pour production
+## Prochaines étapes (P0-P2)
 
-### P1 - Améliorations fonctionnelles
+### P0 - Configuration
+- [ ] Configurer Resend pour l'envoi d'emails
+
+### P1 - Améliorations
 - [ ] Gestion utilisateurs (admin/employé)
-- [ ] Historique des modifications
-- [ ] Photos/pièces jointes sur les réparations
+- [ ] Photos/pièces jointes sur réparations
+- [ ] Impression directe
 
 ### P2 - Évolutions futures
 - [ ] Facturation électronique
-- [ ] Gestion du stock de pièces
-- [ ] Planning des interventions
-- [ ] Tableau de bord avancé avec graphiques
-- [ ] Sauvegarde automatique
-- [ ] Impression directe des fiches
-
-## URLs de l'application
-- **Frontend**: https://fiche-repair.preview.emergentagent.com
-- **API**: https://fiche-repair.preview.emergentagent.com/api
-
-## Endpoints API principaux
-- `GET /api/dashboard/stats` - Statistiques dashboard
-- `GET/POST /api/clients` - Liste/Création clients
-- `GET/PUT/DELETE /api/clients/{id}` - Détail/Modification/Suppression client
-- `GET/POST /api/reparations` - Liste/Création réparations
-- `GET/PUT/DELETE /api/reparations/{id}` - Détail/Modification/Suppression réparation
-- `GET /api/reparations/{id}/pdf/client` - PDF client
-- `GET /api/reparations/{id}/pdf/interne` - PDF interne
-- `POST /api/reparations/{id}/send-email` - Envoi email
-- `GET/POST /api/caisse` - Journal de caisse
-- `GET /api/export/reparations/excel` - Export réparations
-- `GET /api/export/caisse/excel` - Export caisse
+- [ ] Gestion stock pièces
+- [ ] Planning interventions
+- [ ] Graphiques avancés

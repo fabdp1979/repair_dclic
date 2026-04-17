@@ -328,14 +328,14 @@ export default function EncaissementPage() {
               <div>
                 <Label>Client (optionnel)</Label>
                 <Select
-                  value={formData.client_id}
-                  onValueChange={(value) => setFormData({...formData, client_id: value})}
+                  value={formData.client_id || "none"}
+                  onValueChange={(value) => setFormData({...formData, client_id: value === "none" ? "" : value})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {clients.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.prenom} {c.nom}</SelectItem>
                     ))}
