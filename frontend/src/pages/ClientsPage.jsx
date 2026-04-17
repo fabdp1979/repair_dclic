@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { 
   Search, 
   Plus, 
@@ -6,9 +7,10 @@ import {
   Trash2, 
   Phone, 
   Mail, 
-  MapPin,
   User,
-  X
+  Wrench,
+  ShoppingCart,
+  Eye
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -71,7 +73,6 @@ export default function ClientsPage() {
     }
   };
 
-  // Fuzzy search with Fuse.js
   const handleSearch = useCallback((searchTerm) => {
     setSearch(searchTerm);
     
@@ -214,26 +215,17 @@ export default function ClientsPage() {
         </CardHeader>
         <CardContent>
           {filteredClients.length === 0 ? (
-            <div className="empty-state py-8">
-              <User className="w-12 h-12 empty-state-icon" />
-              <p className="empty-state-title">
+            <div className="text-center py-8">
+              <User className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+              <p className="font-medium text-slate-700">
                 {search ? "Aucun résultat" : "Aucun client"}
               </p>
-              <p className="empty-state-description">
+              <p className="text-sm text-slate-500 mt-1">
                 {search 
                   ? "Essayez avec un autre terme de recherche"
                   : "Commencez par ajouter votre premier client"
                 }
               </p>
-              {!search && (
-                <Button 
-                  className="mt-4 bg-[#84CC16] hover:bg-[#65A30D] text-white gap-2"
-                  onClick={() => handleOpenDialog()}
-                >
-                  <Plus className="w-4 h-4" />
-                  Nouveau client
-                </Button>
-              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -243,7 +235,6 @@ export default function ClientsPage() {
                     <th>Nom</th>
                     <th>Téléphone</th>
                     <th>Email</th>
-                    <th className="hidden md:table-cell">Adresse</th>
                     <th className="text-right">Actions</th>
                   </tr>
                 </thead>
@@ -278,18 +269,13 @@ export default function ClientsPage() {
                           <span className="text-slate-400">-</span>
                         )}
                       </td>
-                      <td className="hidden md:table-cell">
-                        {client.adresse ? (
-                          <div className="flex items-center gap-1 text-slate-600">
-                            <MapPin className="w-3 h-3 flex-shrink-0" />
-                            <span className="truncate max-w-[200px]">{client.adresse}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">
+                          <Link to={`/clients/${client.id}`}>
+                            <Button variant="ghost" size="sm" title="Voir détails">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </Link>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -387,12 +373,7 @@ export default function ClientsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-                data-testid="client-cancel-btn"
-              >
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>
                 Annuler
               </Button>
               <Button
@@ -410,7 +391,7 @@ export default function ClientsPage() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent data-testid="delete-client-dialog">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer le client ?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -419,11 +400,10 @@ export default function ClientsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="delete-client-cancel">Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
-              data-testid="delete-client-confirm"
             >
               Supprimer
             </AlertDialogAction>

@@ -156,14 +156,17 @@ class DCLICAPITester:
         # Test CREATE reparation
         reparation_data = {
             "client_id": client_id,
-            "marque": "HP",
-            "modele": "Pavilion 15",
+            "materiel_fourni": {"pc_portable": True, "chargeur_pc": True},
+            "autre_materiel": "Sacoche HP",
+            "urgence": False,
             "mot_de_passe": "test123",
-            "probleme_declare": "Ordinateur ne démarre plus",
+            "description_panne": "Ordinateur ne démarre plus",
+            "observations_client": "Client signale que l'ordinateur s'éteint subitement",
             "diagnostic": "Problème d'alimentation",
             "action_realisee": "Remplacement du chargeur",
             "prix": 45.50,
-            "statut": "En cours"
+            "statut": "Réparation enregistrée",
+            "statut_interne": "En cours"
         }
         
         success, created_rep = self.run_test("Create Reparation", "POST", "reparations", 200, reparation_data)
@@ -176,7 +179,7 @@ class DCLICAPITester:
                 self.run_test("Get Reparation by ID", "GET", f"reparations/{rep_id}", 200)
                 
                 # Test UPDATE reparation
-                update_data = {"statut": "Terminé", "prix": 50.00}
+                update_data = {"statut": "Appareil prêt", "statut_interne": "Terminé", "prix": 50.00}
                 self.run_test("Update Reparation", "PUT", f"reparations/{rep_id}", 200, update_data)
                 
                 # Test GET all reparations
@@ -186,7 +189,7 @@ class DCLICAPITester:
                 self.run_test("Search Reparations", "GET", "reparations", 200, params={"search": "HP"})
                 
                 # Test status filter
-                self.run_test("Filter by Status", "GET", "reparations", 200, params={"statut": "Terminé"})
+                self.run_test("Filter by Status", "GET", "reparations", 200, params={"statut": "Appareil prêt"})
                 
                 return rep_id
         
@@ -311,9 +314,130 @@ class DCLICAPITester:
         except Exception as e:
             self.log_test("Export Caisse Excel", False, f"Exception: {str(e)}")
 
+    def test_commandes_crud(self, client_id: str):
+        """Test complete CRUD operations for commandes"""
+        print("\n📦 Testing Commandes CRUD...")
+        
+        if not client_id:
+            self.log_test("Commandes CRUD", False, "No client ID available")
+            return None
+        
+        # Test CREATE commande
+        commande_data = {
+            "client_id": client_id,
+            "reference_produit": "REF-12345",
+            "designation": "Disque dur SSD 500GB",
+            "fournisseur": "LDLC",
+            "quantite": 1,
+            "prix_achat": 45.00,
+            "prix_vente": 65.00,
+            "statut": "En attente de commande",
+            "remarques": "Commande urgente"
+        }
+        
+        success, created_cmd = self.run_test("Create Commande", "POST", "commandes", 200, commande_data)
+        if success and created_cmd:
+            cmd_id = created_cmd.get('id')
+            if cmd_id:
+                self.created_resources.setdefault('commandes', []).append(cmd_id)
+                
+                # Test GET specific commande
+                self.run_test("Get Commande by ID", "GET", f"commandes/{cmd_id}", 200)
+                
+                # Test UPDATE commande status
+                update_data = {"statut": "Commandé"}
+                self.run_test("Update Commande Status", "PUT", f"commandes/{cmd_id}", 200, update_data)
+                
+                # Test GET all commandes
+                self.run_test("Get All Commandes", "GET", "commandes", 200)
+                
+                # Test commande search
+                self.run_test("Search Commandes", "GET", "commandes", 200, params={"search": "SSD"})
+                
+                # Test status filter
+                self.run_test("Filter Commandes by Status", "GET", "commandes", 200, params={"statut": "Commandé"})
+                
+                return cmd_id
+        
+        return None
+
+    def test_encaissements_crud(self, client_id: str):
+        """Test CRUD operations for encaissements"""
+        print("\n💳 Testing Encaissements CRUD...")
+        
+        # Test CREATE encaissement
+        encaissement_data = {
+            "type_recette": "reparation",
+            "montant": 60.00,
+            "mode_paiement": "cb",
+            "client_id": client_id,
+            "reference": "REP-2024-0001",
+            "remarque": "Paiement réparation PC"
+        }
+        
+        success, created_enc = self.run_test("Create Encaissement", "POST", "encaissements", 200, encaissement_data)
+        if success and created_enc:
+            enc_id = created_enc.get('id')
+            if enc_id:
+                self.created_resources.setdefault('encaissements', []).append(enc_id)
+        
+        # Test GET all encaissements
+        self.run_test("Get All Encaissements", "GET", "encaissements", 200)
+        
+        # Test date filtering
+        today = datetime.now().strftime("%Y-%m-%d")
+        self.run_test("Filter Encaissements by Date", "GET", "encaissements", 200, 
+                     params={"date_from": today, "date_to": today})
+
+    def test_public_tracking(self, reparation_id: str):
+        """Test public tracking endpoint"""
+        print("\n🔍 Testing Public Tracking...")
+        
+        if not reparation_id:
+            self.log_test("Public Tracking", False, "No reparation ID available")
+            return
+        
+        # First get the reparation to find tracking_id
+        try:
+            url = f"{self.api_base}/reparations/{reparation_id}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                rep_data = response.json()
+                tracking_id = rep_data.get('tracking_id')
+                if tracking_id:
+                    # Test public tracking
+                    success, data = self.run_test("Public Tracking", "GET", f"suivi/{tracking_id}", 200)
+                    if success and data:
+                        required_fields = ['numero', 'client_nom', 'client_prenom', 'date_depot', 'statut']
+                        for field in required_fields:
+                            if field not in data:
+                                self.log_test(f"Tracking field {field}", False, "Missing field")
+                            else:
+                                self.log_test(f"Tracking field {field}", True)
+                else:
+                    self.log_test("Public Tracking", False, "No tracking_id found")
+            else:
+                self.log_test("Public Tracking", False, f"Could not get reparation: {response.status_code}")
+        except Exception as e:
+            self.log_test("Public Tracking", False, f"Exception: {str(e)}")
+
     def cleanup_resources(self):
         """Clean up created test resources"""
         print("\n🧹 Cleaning up test resources...")
+        
+        # Delete encaissements
+        for enc_id in self.created_resources.get('encaissements', []):
+            try:
+                self.run_test(f"Delete Encaissement {enc_id}", "DELETE", f"encaissements/{enc_id}", 200)
+            except:
+                pass
+        
+        # Delete commandes
+        for cmd_id in self.created_resources.get('commandes', []):
+            try:
+                self.run_test(f"Delete Commande {cmd_id}", "DELETE", f"commandes/{cmd_id}", 200)
+            except:
+                pass
         
         # Delete reparations first (they depend on clients)
         for rep_id in self.created_resources['reparations']:
@@ -356,11 +480,20 @@ class DCLICAPITester:
         # Test reparations CRUD (requires client)
         reparation_id = self.test_reparations_crud(client_id)
         
+        # Test commandes CRUD (requires client)
+        commande_id = self.test_commandes_crud(client_id)
+        
+        # Test encaissements CRUD
+        self.test_encaissements_crud(client_id)
+        
         # Test PDF generation
         self.test_pdf_generation(reparation_id)
         
         # Test email sending
         self.test_email_sending(reparation_id)
+        
+        # Test public tracking
+        self.test_public_tracking(reparation_id)
         
         # Test caisse CRUD
         self.test_caisse_crud()

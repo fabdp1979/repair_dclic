@@ -5,8 +5,11 @@ import {
   Users, 
   Wrench, 
   BookOpen,
+  ShoppingCart,
+  CreditCard,
   Menu,
-  X
+  X,
+  QrCode
 } from "lucide-react";
 import { useState } from "react";
 import "@/App.css";
@@ -14,13 +17,19 @@ import "@/App.css";
 // Pages
 import Dashboard from "./pages/Dashboard";
 import ClientsPage from "./pages/ClientsPage";
+import ClientDetailPage from "./pages/ClientDetailPage";
 import ReparationsPage from "./pages/ReparationsPage";
+import CommandesPage from "./pages/CommandesPage";
+import EncaissementPage from "./pages/EncaissementPage";
 import CaissePage from "./pages/CaissePage";
+import SuiviPage from "./pages/SuiviPage";
 
 const navigation = [
   { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
   { name: "Réparations", href: "/reparations", icon: Wrench },
+  { name: "Commandes client", href: "/commandes", icon: ShoppingCart },
+  { name: "Encaissement", href: "/encaissement", icon: CreditCard },
   { name: "Journal de caisse", href: "/caisse", icon: BookOpen },
 ];
 
@@ -63,7 +72,7 @@ function Sidebar({ isOpen, setIsOpen }) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-2 space-y-1 pb-20">
+        <nav className="p-2 space-y-1 pb-24">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href || 
               (item.href !== "/" && location.pathname.startsWith(item.href));
@@ -80,7 +89,7 @@ function Sidebar({ isOpen, setIsOpen }) {
                 data-testid={`nav-${item.href.replace('/', '') || 'dashboard'}`}
               >
                 <item.icon className="w-5 h-5 mr-3" />
-                <span className="font-medium">{item.name}</span>
+                <span className="font-medium text-sm">{item.name}</span>
               </NavLink>
             );
           })}
@@ -98,10 +107,13 @@ function Sidebar({ isOpen, setIsOpen }) {
 
 function MobileNav() {
   const location = useLocation();
+  
+  // Show only 5 most important items on mobile
+  const mobileNav = navigation.slice(0, 5);
 
   return (
     <nav className="mobile-nav md:hidden">
-      {navigation.map((item) => {
+      {mobileNav.map((item) => {
         const isActive = location.pathname === item.href || 
           (item.href !== "/" && location.pathname.startsWith(item.href));
         
@@ -123,6 +135,12 @@ function MobileNav() {
 
 function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+  
+  // Don't show layout for public tracking page
+  if (location.pathname.startsWith('/suivi/')) {
+    return children;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
@@ -144,7 +162,7 @@ function Layout({ children }) {
             </div>
             <span className="font-outfit font-semibold text-slate-900">DCLIC</span>
           </div>
-          <div className="w-10" /> {/* Spacer */}
+          <div className="w-10" />
         </header>
 
         <div className="p-4 md:p-6 lg:p-8">
@@ -165,8 +183,12 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/clients/:id" element={<ClientDetailPage />} />
           <Route path="/reparations" element={<ReparationsPage />} />
+          <Route path="/commandes" element={<CommandesPage />} />
+          <Route path="/encaissement" element={<EncaissementPage />} />
           <Route path="/caisse" element={<CaissePage />} />
+          <Route path="/suivi/:trackingId" element={<SuiviPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>
