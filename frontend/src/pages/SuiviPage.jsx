@@ -159,9 +159,9 @@ export default function SuiviPage() {
             {/* Current status highlight */}
             <div className={`
               p-4 rounded-lg text-center
-              ${data.statut === "Appareil prêt" ? 'bg-green-100' : 'bg-amber-50'}
+              ${data.statut === "Appareil prêt" ? 'bg-green-100' : 'bg-blue-50'}
             `}>
-              <p className={`font-semibold ${data.statut === "Appareil prêt" ? 'text-green-700' : 'text-amber-700'}`}>
+              <p className={`font-semibold ${data.statut === "Appareil prêt" ? 'text-green-700' : 'text-blue-700'}`}>
                 {data.statut === "Appareil prêt" 
                   ? "Votre appareil est prêt ! Vous pouvez venir le récupérer."
                   : `Statut actuel : ${data.statut}`

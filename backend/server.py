@@ -596,7 +596,7 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#FEF08A')),
+        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#E5E7EB')),
     ]))
     elements.append(tech_table)
     elements.append(Spacer(1, 10))
@@ -674,7 +674,7 @@ async def get_dashboard_stats():
         {"date": {"$regex": f"^{today}"}},
         {"_id": 0}
     ).to_list(1000)
-    total_entrees += sum(e["montant"] for e in today_encaissements)
+    total_entrees += sum(e.get("montant_ttc", e.get("montant", 0)) or 0 for e in today_encaissements)
     
     return DashboardStats(
         total_clients=total_clients,
@@ -1542,6 +1542,7 @@ async def export_caisse_excel(
             "especes": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "especes" else 0,
             "cheques": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "cheque" else 0,
             "cb": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "cb" else 0,
+            "virement": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "virement" else 0,
             "depenses": entry.get("montant") if entry.get("type") == "sortie" else 0,
             "description": entry.get("description", ""),
             "mode": entry.get("mode_paiement", "")
@@ -1551,11 +1552,44 @@ async def export_caisse_excel(
         date_str = entry.get("date", "")[:7]
         if date_str not in months_data:
             months_data[date_str] = []
+
+        # Support nouveau schéma (paiements array) et ancien (mode_paiement)
+        especes = 0
+        cheques = 0
+        cb = 0
+        virement = 0
+        total_ttc = entry.get("montant_ttc", entry.get("montant", 0)) or 0
+
+        paiements = entry.get("paiements")
+        if isinstance(paiements, list) and paiements:
+            for p in paiements:
+                mode = (p.get("mode") or "").lower()
+                montant = float(p.get("montant") or 0)
+                if mode == "especes":
+                    especes += montant
+                elif mode == "cheque":
+                    cheques += montant
+                elif mode == "cb":
+                    cb += montant
+                elif mode == "virement":
+                    virement += montant
+        else:
+            mode = (entry.get("mode_paiement") or "").lower()
+            if mode == "especes":
+                especes = total_ttc
+            elif mode == "cheque":
+                cheques = total_ttc
+            elif mode == "cb":
+                cb = total_ttc
+            elif mode == "virement":
+                virement = total_ttc
+
         months_data[date_str].append({
             "date": entry.get("date", "")[:10],
-            "especes": entry.get("montant") if entry.get("mode_paiement") == "especes" else 0,
-            "cheques": entry.get("montant") if entry.get("mode_paiement") == "cheque" else 0,
-            "cb": entry.get("montant") if entry.get("mode_paiement") == "cb" else 0,
+            "especes": especes,
+            "cheques": cheques,
+            "cb": cb,
+            "virement": virement,
             "depenses": 0,
             "description": entry.get("remarque", "") or entry.get("type_recette", ""),
             "mode": entry.get("mode_paiement", "")
@@ -1591,7 +1625,7 @@ async def export_caisse_excel(
         running_total = 0
         
         for row_idx, entry in enumerate(entries, 2):
-            total_entrees = entry["especes"] + entry["cheques"] + entry["cb"]
+            total_entrees = entry["especes"] + entry["cheques"] + entry["cb"] + entry.get("virement", 0)
             running_total += total_entrees - entry["depenses"]
             
             # A - DATE

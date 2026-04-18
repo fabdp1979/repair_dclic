@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
-  Search, Plus, Edit, Trash2, ShoppingCart, Check, Package, Truck
+  Search, Plus, Edit, Trash2, ShoppingCart, Check, Package, Truck, Eraser
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -19,7 +19,7 @@ import {
 } from "../components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
-  getCommandes, createCommande, updateCommande, deleteCommande, getClients
+  getCommandes, createCommande, updateCommande, deleteCommande, getClients, purgeCompletedCommandes
 } from "../lib/api";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ export default function CommandesPage() {
   const [selectedCommande, setSelectedCommande] = useState(null);
   const [formData, setFormData] = useState(emptyCommande);
   const [saving, setSaving] = useState(false);
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -185,6 +186,17 @@ export default function CommandesPage() {
     }
   };
 
+  const handlePurge = async () => {
+    try {
+      const res = await purgeCompletedCommandes();
+      toast.success(res.data?.message || "Commandes terminées purgées");
+      setPurgeDialogOpen(false);
+      loadData();
+    } catch (error) {
+      toast.error("Erreur lors de la purge");
+    }
+  };
+
   const getStatusBadgeClass = (statut) => {
     switch (statut) {
       case "Reçu":
@@ -197,7 +209,7 @@ export default function CommandesPage() {
       case "Annulé":
         return "bg-red-100 text-red-700";
       default:
-        return "bg-amber-100 text-amber-700";
+        return "bg-slate-100 text-slate-700";
     }
   };
 
@@ -221,13 +233,25 @@ export default function CommandesPage() {
             {commandes.length} commande{commandes.length > 1 ? 's' : ''}
           </p>
         </div>
-        <Button 
-          className="bg-[#84CC16] hover:bg-[#65A30D] text-white gap-2"
-          onClick={() => handleOpenDialog()}
-        >
-          <Plus className="w-4 h-4" />
-          Nouvelle commande
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPurgeDialogOpen(true)}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            data-testid="purge-commandes-btn"
+          >
+            <Eraser className="w-4 h-4 mr-2" />
+            Purger terminées
+          </Button>
+          <Button 
+            className="bg-[#84CC16] hover:bg-[#65A30D] text-white gap-2"
+            onClick={() => handleOpenDialog()}
+            data-testid="add-commande-btn"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle commande
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -511,6 +535,23 @@ export default function CommandesPage() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Purge Confirmation Dialog */}
+      <AlertDialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Purger les commandes terminées ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Toutes les commandes avec le statut "Livré/Récupéré" ou "Réglé" seront définitivement supprimées. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurge} className="bg-red-500 hover:bg-red-600">
+              Purger
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   Search, Plus, Edit, Trash2, FileText, Send, CheckCircle,
   Wrench, Download, Clock, AlertTriangle, Link as LinkIcon, QrCode,
@@ -73,9 +74,10 @@ const emptyReparation = {
   statut_interne: "En cours"
 };
 
-const emptyClient = { nom: "", prenom: "", telephone: "", email: "", adresse: "" };
+const emptyClient = { nom: "", prenom: "", telephone: "", telephone2: "", email: "", adresse: "" };
 
 export default function ReparationsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [reparations, setReparations] = useState([]);
   const [filteredReparations, setFilteredReparations] = useState([]);
   const [clients, setClients] = useState([]);
@@ -94,6 +96,18 @@ export default function ReparationsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-open new repair dialog when navigating with ?newFor=clientId
+  useEffect(() => {
+    const newFor = searchParams.get("newFor");
+    if (newFor && clients.length > 0) {
+      setSelectedReparation(null);
+      setFormData({ ...emptyReparation, client_id: newFor });
+      setDialogOpen(true);
+      // Clean URL
+      setSearchParams({}, { replace: true });
+    }
+  }, [clients, searchParams, setSearchParams]);
 
   const loadData = async () => {
     try {
@@ -197,7 +211,8 @@ export default function ReparationsPage() {
       handleCloseDialog();
       loadData();
     } catch (error) {
-      toast.error("Erreur lors de l'enregistrement");
+      const msg = error.response?.data?.detail;
+      toast.error(typeof msg === "string" ? msg : "Erreur lors de l'enregistrement");
       console.error(error);
     } finally {
       setSaving(false);
@@ -259,14 +274,21 @@ export default function ReparationsPage() {
     }
 
     try {
-      const response = await createClient(clientFormData);
+      const payload = {
+        ...clientFormData,
+        telephone2: clientFormData.telephone2 || null,
+        email: clientFormData.email || null,
+      };
+      const response = await createClient(payload);
       toast.success("Client créé avec succès");
       setClients([...clients, response.data]);
       setFormData({ ...formData, client_id: response.data.id });
       setClientDialogOpen(false);
       setClientFormData(emptyClient);
     } catch (error) {
-      toast.error("Erreur lors de la création du client");
+      const msg = error.response?.data?.detail || "Erreur lors de la création du client";
+      toast.error(typeof msg === "string" ? msg : "Erreur lors de la création du client");
+      console.error(error);
     }
   };
 
@@ -367,7 +389,7 @@ export default function ReparationsPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           reparation.statut === "Appareil prêt" 
                             ? "bg-green-100 text-green-700" 
-                            : "bg-amber-100 text-amber-700"
+                            : "bg-blue-100 text-blue-700"
                         }`}>
                           {reparation.statut}
                         </span>
@@ -704,7 +726,7 @@ export default function ReparationsPage() {
 
       {/* New Client Dialog */}
       <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
             <DialogTitle className="font-outfit">Nouveau client rapide</DialogTitle>
           </DialogHeader>
@@ -730,14 +752,25 @@ export default function ReparationsPage() {
                   />
                 </div>
               </div>
-              <div>
-                <Label htmlFor="new-telephone">Téléphone *</Label>
-                <Input
-                  id="new-telephone"
-                  value={clientFormData.telephone}
-                  onChange={(e) => setClientFormData({...clientFormData, telephone: e.target.value})}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="new-telephone">Téléphone *</Label>
+                  <Input
+                    id="new-telephone"
+                    value={clientFormData.telephone}
+                    onChange={(e) => setClientFormData({...clientFormData, telephone: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="new-telephone2">Téléphone 2</Label>
+                  <Input
+                    id="new-telephone2"
+                    value={clientFormData.telephone2}
+                    onChange={(e) => setClientFormData({...clientFormData, telephone2: e.target.value})}
+                    placeholder="Optionnel"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="new-email">Email</Label>

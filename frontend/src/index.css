@@ -22,8 +22,8 @@
     --border: 226 232 240;
     --border-focus: 84 204 22;
     
-    --status-in-progress-bg: 254 240 138;
-    --status-in-progress-text: 133 77 14;
+    --status-in-progress-bg: 219 234 254;
+    --status-in-progress-text: 30 64 175;
     --status-completed-bg: 217 249 157;
     --status-completed-text: 63 98 18;
     --status-error-bg: 254 202 202;
@@ -108,7 +108,7 @@ code {
 .status-en-cours {
     background-color: rgb(var(--status-in-progress-bg));
     color: rgb(var(--status-in-progress-text));
-    border-color: #FACC15;
+    border-color: #93C5FD;
 }
 
 .status-termine {
@@ -167,3 +167,40 @@ code {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+
+/* Override browser autofill yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: rgb(15, 23, 42) !important;
+}
+
+/* Data table styling */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgb(226, 232, 240);
+}
+
+.data-table th {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: rgb(100, 116, 139);
+    background-color: rgb(248, 250, 252);
+}
+
+.data-table tbody tr:hover {
+    background-color: rgb(248, 250, 252);
+}
+
