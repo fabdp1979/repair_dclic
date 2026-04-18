@@ -83,9 +83,13 @@ export const updateCommande = (id, data) => api.put(`/commandes/${id}`, data);
 
 export const deleteCommande = (id) => api.delete(`/commandes/${id}`);
 
+export const purgeCompletedCommandes = () => api.delete('/commandes/purge/completed');
+
 export const getStatutsCommande = () => api.get('/commandes/statuts');
 
 // Encaissement
+export const getTypesRecette = () => api.get('/encaissements/types');
+
 export const getEncaissements = (dateFrom = '', dateTo = '', limit = 100) => 
   api.get('/encaissements', { 
     params: { 

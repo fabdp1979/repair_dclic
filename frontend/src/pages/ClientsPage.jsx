@@ -1,37 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Phone, 
-  Mail, 
-  User,
-  Wrench,
-  ShoppingCart,
-  Eye
+  Search, Plus, Edit, Trash2, Phone, Mail, User, Wrench, Eye
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "../components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import { getClients, createClient, updateClient, deleteClient } from "../lib/api";
 import { toast } from "sonner";
@@ -41,11 +22,13 @@ const emptyClient = {
   nom: "",
   prenom: "",
   telephone: "",
+  telephone2: "",
   email: "",
   adresse: ""
 };
 
 export default function ClientsPage() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [search, setSearch] = useState("");
@@ -82,7 +65,7 @@ export default function ClientsPage() {
     }
 
     const fuse = new Fuse(clients, {
-      keys: ['nom', 'prenom', 'telephone', 'email'],
+      keys: ['nom', 'prenom', 'telephone', 'telephone2', 'email'],
       threshold: 0.4,
       includeScore: true
     });
@@ -98,6 +81,7 @@ export default function ClientsPage() {
         nom: client.nom,
         prenom: client.prenom,
         telephone: client.telephone,
+        telephone2: client.telephone2 || "",
         email: client.email || "",
         adresse: client.adresse || ""
       });
@@ -124,11 +108,16 @@ export default function ClientsPage() {
 
     setSaving(true);
     try {
+      const dataToSend = {
+        ...formData,
+        telephone2: formData.telephone2 || null
+      };
+      
       if (selectedClient) {
-        await updateClient(selectedClient.id, formData);
+        await updateClient(selectedClient.id, dataToSend);
         toast.success("Client modifié avec succès");
       } else {
-        await createClient(formData);
+        await createClient(dataToSend);
         toast.success("Client créé avec succès");
       }
       handleCloseDialog();
@@ -159,6 +148,10 @@ export default function ClientsPage() {
   const openDeleteDialog = (client) => {
     setSelectedClient(client);
     setDeleteDialogOpen(true);
+  };
+
+  const handleNewReparation = (clientId) => {
+    navigate(`/reparations?newFor=${clientId}`);
   };
 
   if (loading) {
@@ -254,9 +247,17 @@ export default function ClientsPage() {
                         </div>
                       </td>
                       <td>
-                        <div className="flex items-center gap-1 text-slate-600">
-                          <Phone className="w-3 h-3" />
-                          <span>{client.telephone}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-slate-600">
+                            <Phone className="w-3 h-3" />
+                            <span>{client.telephone}</span>
+                          </div>
+                          {client.telephone2 && (
+                            <div className="flex items-center gap-1 text-slate-500 text-sm">
+                              <Phone className="w-3 h-3" />
+                              <span>{client.telephone2}</span>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -271,6 +272,15 @@ export default function ClientsPage() {
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[#84CC16] border-[#84CC16]/30 hover:bg-[#84CC16]/10"
+                            onClick={() => handleNewReparation(client.id)}
+                            title="Nouvelle réparation"
+                          >
+                            <Wrench className="w-4 h-4" />
+                          </Button>
                           <Link to={`/clients/${client.id}`}>
                             <Button variant="ghost" size="sm" title="Voir détails">
                               <Eye className="w-4 h-4" />
@@ -306,7 +316,7 @@ export default function ClientsPage() {
 
       {/* Client Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md" data-testid="client-dialog">
+        <DialogContent className="sm:max-w-md bg-white" data-testid="client-dialog">
           <DialogHeader>
             <DialogTitle className="font-outfit">
               {selectedClient ? "Modifier le client" : "Nouveau client"}
@@ -338,17 +348,30 @@ export default function ClientsPage() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="telephone">Téléphone *</Label>
-                <Input
-                  id="telephone"
-                  type="tel"
-                  value={formData.telephone}
-                  onChange={(e) => setFormData({...formData, telephone: e.target.value})}
-                  placeholder="06 12 34 56 78"
-                  required
-                  data-testid="client-telephone-input"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="telephone">Téléphone *</Label>
+                  <Input
+                    id="telephone"
+                    type="tel"
+                    value={formData.telephone}
+                    onChange={(e) => setFormData({...formData, telephone: e.target.value})}
+                    placeholder="06 12 34 56 78"
+                    required
+                    data-testid="client-telephone-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telephone2">Téléphone 2</Label>
+                  <Input
+                    id="telephone2"
+                    type="tel"
+                    value={formData.telephone2}
+                    onChange={(e) => setFormData({...formData, telephone2: e.target.value})}
+                    placeholder="Optionnel"
+                    data-testid="client-telephone2-input"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

@@ -110,6 +110,7 @@ class ClientBase(BaseModel):
     nom: str
     prenom: str
     telephone: str
+    telephone2: Optional[str] = None
     email: Optional[EmailStr] = None
     adresse: Optional[str] = None
 
@@ -120,6 +121,7 @@ class ClientUpdate(BaseModel):
     nom: Optional[str] = None
     prenom: Optional[str] = None
     telephone: Optional[str] = None
+    telephone2: Optional[str] = None
     email: Optional[EmailStr] = None
     adresse: Optional[str] = None
 
@@ -248,10 +250,25 @@ class CaisseEntry(CaisseEntryBase):
     date: str
 
 # Encaissement Models (entrées uniquement)
-class EncaissementBase(BaseModel):
-    type_recette: str  # "vente", "reparation", "autre"
+# Types: forfait_63, rapide_30, express_10, devis_15, ventes, autre
+TYPES_RECETTE = {
+    "forfait_63": {"label": "Forfait réparation", "ttc": 63.0, "ht": 52.50},
+    "rapide_30": {"label": "Réparation rapide", "ttc": 30.0, "ht": 25.0},
+    "express_10": {"label": "Réparation express", "ttc": 10.0, "ht": 8.33},
+    "devis_15": {"label": "Devis", "ttc": 15.0, "ht": 12.50},
+    "ventes": {"label": "Ventes", "ttc": None, "ht": None},
+    "autre": {"label": "Autre", "ttc": None, "ht": None}
+}
+
+class PaiementDetail(BaseModel):
+    mode: str  # especes, cb, cheque, virement
     montant: float
-    mode_paiement: str
+
+class EncaissementBase(BaseModel):
+    type_recette: str
+    montant_ttc: float
+    montant_ht: Optional[float] = None
+    paiements: List[PaiementDetail]  # Permet plusieurs modes de paiement
     client_id: Optional[str] = None
     reference: Optional[str] = None
     remarque: Optional[str] = None
@@ -682,6 +699,7 @@ async def create_client(client: ClientCreate):
         "nom": client.nom,
         "prenom": client.prenom,
         "telephone": client.telephone,
+        "telephone2": client.telephone2,
         "email": client.email,
         "adresse": client.adresse,
         "created_at": now,
@@ -1243,18 +1261,37 @@ async def delete_commande(commande_id: str):
         raise HTTPException(status_code=404, detail="Commande non trouvée")
     return {"message": "Commande supprimée"}
 
+@api_router.delete("/commandes/purge/completed")
+async def purge_completed_commandes():
+    """Delete all completed orders (Livré/Récupéré, Réglé)"""
+    result = await db.commandes.delete_many({
+        "statut": {"$in": ["Livré/Récupéré", "Réglé"]}
+    })
+    return {"message": f"{result.deleted_count} commandes supprimées"}
+
 # ===================== ENCAISSEMENT =====================
+
+@api_router.get("/encaissements/types")
+async def get_types_recette():
+    """Get available receipt types"""
+    return {"types": TYPES_RECETTE}
 
 @api_router.post("/encaissements", response_model=Encaissement)
 async def create_encaissement(encaissement: EncaissementCreate):
-    """Create a new receipt entry"""
+    """Create a new receipt entry with multiple payment methods"""
     now = datetime.now(timezone.utc).isoformat()
+    
+    # Calculate HT if not provided (assuming 20% TVA)
+    montant_ht = encaissement.montant_ht
+    if not montant_ht:
+        montant_ht = round(encaissement.montant_ttc / 1.2, 2)
     
     entry_doc = {
         "id": str(uuid.uuid4()),
         "type_recette": encaissement.type_recette,
-        "montant": encaissement.montant,
-        "mode_paiement": encaissement.mode_paiement,
+        "montant_ttc": encaissement.montant_ttc,
+        "montant_ht": montant_ht,
+        "paiements": [p.model_dump() for p in encaissement.paiements],
         "client_id": encaissement.client_id,
         "reference": encaissement.reference,
         "remarque": encaissement.remarque,
@@ -1272,7 +1309,7 @@ async def create_encaissement(encaissement: EncaissementCreate):
     
     return entry_doc
 
-@api_router.get("/encaissements", response_model=List[Encaissement])
+@api_router.get("/encaissements")
 async def get_encaissements(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
@@ -1292,6 +1329,13 @@ async def get_encaissements(
     entries = await db.encaissements.find(query, {"_id": 0}).sort("date", -1).to_list(limit)
     
     for entry in entries:
+        # Migration for old entries
+        if "montant" in entry and "montant_ttc" not in entry:
+            entry["montant_ttc"] = entry["montant"]
+            entry["montant_ht"] = round(entry["montant"] / 1.2, 2)
+        if "mode_paiement" in entry and "paiements" not in entry:
+            entry["paiements"] = [{"mode": entry["mode_paiement"], "montant": entry.get("montant_ttc", entry.get("montant", 0))}]
+        
         if entry.get("client_id"):
             client = await db.clients.find_one({"id": entry["client_id"]}, {"_id": 0})
             if client:
