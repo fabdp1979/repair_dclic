@@ -1378,9 +1378,9 @@ async def create_caisse_entry(entry: CaisseEntryCreate):
 async def get_caisse_entries(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
-    limit: int = Query(100, le=500)
+    limit: int = Query(500, le=2000)
 ):
-    """Get cash register entries"""
+    """Get cash register entries — unified view (caisse + encaissements)"""
     query = {}
     if date_from or date_to:
         date_query = {}
@@ -1390,13 +1390,73 @@ async def get_caisse_entries(
             date_query["$lte"] = date_to + "T23:59:59"
         if date_query:
             query["date"] = date_query
-    
-    entries = await db.caisse.find(query, {"_id": 0}).sort("date", -1).to_list(limit)
-    return entries
+
+    # Manual caisse entries
+    entries = await db.caisse.find(query, {"_id": 0}).to_list(limit)
+
+    # Also include encaissements (recettes quotidiennes) comme entrées de caisse automatiques
+    encaissements = await db.encaissements.find(query, {"_id": 0}).to_list(limit)
+
+    type_labels = {
+        "forfait_63": "Forfait réparation 63€",
+        "rapide_30": "Réparation rapide 30€",
+        "express_10": "Réparation express 10€",
+        "devis_15": "Devis 15€",
+        "ventes": "Ventes",
+        "autre": "Autre recette",
+    }
+
+    for enc in encaissements:
+        total_ttc = enc.get("montant_ttc", enc.get("montant", 0)) or 0
+        paiements = enc.get("paiements") or ([{"mode": enc.get("mode_paiement"), "montant": total_ttc}] if enc.get("mode_paiement") else [])
+        # Créer une ligne caisse par mode de paiement (vue unifiée)
+        type_label = type_labels.get(enc.get("type_recette"), enc.get("type_recette", "Recette"))
+        remarque = enc.get("remarque") or ""
+        description_base = f"{type_label}" + (f" — {remarque}" if remarque else "")
+        if paiements:
+            for p in paiements:
+                entries.append({
+                    "id": f"enc-{enc['id']}-{p.get('mode','')}",
+                    "type": "entree",
+                    "montant": float(p.get("montant") or 0),
+                    "description": description_base,
+                    "mode_paiement": p.get("mode"),
+                    "reparation_id": None,
+                    "client_id": enc.get("client_id"),
+                    "date": enc.get("date"),
+                })
+        else:
+            entries.append({
+                "id": f"enc-{enc['id']}",
+                "type": "entree",
+                "montant": float(total_ttc),
+                "description": description_base,
+                "mode_paiement": None,
+                "reparation_id": None,
+                "client_id": enc.get("client_id"),
+                "date": enc.get("date"),
+            })
+
+    # Tri décroissant par date
+    entries.sort(key=lambda e: e.get("date") or "", reverse=True)
+    return entries[:limit]
 
 @api_router.delete("/caisse/{entry_id}")
 async def delete_caisse_entry(entry_id: str):
-    """Delete a cash register entry"""
+    """Delete a cash register entry (or underlying encaissement if id starts with 'enc-')"""
+    if entry_id.startswith("enc-"):
+        # id format: enc-{encaissement_id} ou enc-{encaissement_id}-{mode}
+        parts = entry_id.split("-")
+        # UUID4 has 5 parts separated by '-', so we rebuild it
+        if len(parts) >= 6:
+            enc_id = "-".join(parts[1:6])
+        else:
+            enc_id = "-".join(parts[1:])
+        result = await db.encaissements.delete_one({"id": enc_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Encaissement non trouvé")
+        return {"message": "Encaissement supprimé"}
+
     result = await db.caisse.delete_one({"id": entry_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Entrée non trouvée")

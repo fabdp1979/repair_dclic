@@ -117,19 +117,40 @@ export const createCaisseEntry = (data) => api.post('/caisse', data);
 
 export const deleteCaisseEntry = (id) => api.delete(`/caisse/${id}`);
 
-// Exports
-export const exportReparationsExcel = (dateFrom = '', dateTo = '') => 
+// Exports — direct URLs
+export const exportReparationsExcelUrl = (dateFrom = '', dateTo = '') => 
   `${API_BASE}/export/reparations/excel?${new URLSearchParams({ 
     date_from: dateFrom || '', 
     date_to: dateTo || '' 
   })}`;
 
-export const exportCaisseExcel = (dateFrom = '', dateTo = '', year = '', month = '') => 
+export const exportCaisseExcelUrl = (dateFrom = '', dateTo = '', year = '', month = '') => 
   `${API_BASE}/export/caisse/excel?${new URLSearchParams({ 
     date_from: dateFrom || '', 
     date_to: dateTo || '',
     year: year || '',
     month: month || ''
   })}`;
+
+// Backwards-compat aliases
+export const exportReparationsExcel = exportReparationsExcelUrl;
+export const exportCaisseExcel = exportCaisseExcelUrl;
+
+// Robust blob downloader (évite les pop-ups bloquées et tabs blanches)
+export const downloadFile = async (url, filename) => {
+  const response = await fetch(url, { method: 'GET' });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(blobUrl);
+};
 
 export default api;

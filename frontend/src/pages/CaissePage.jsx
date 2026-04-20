@@ -16,7 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../components/ui/select";
-import { getCaisseEntries, createCaisseEntry, deleteCaisseEntry, exportCaisseExcel } from "../lib/api";
+import { getCaisseEntries, createCaisseEntry, deleteCaisseEntry, exportCaisseExcelUrl, downloadFile } from "../lib/api";
 import { toast } from "sonner";
 
 const MODES_PAIEMENT = [
@@ -110,8 +110,15 @@ export default function CaissePage() {
     }
   };
 
-  const handleExportExcel = () => {
-    window.open(exportCaisseExcel(dateFrom, dateTo), '_blank');
+  const handleExportExcel = async () => {
+    try {
+      const filename = `journal_caisse_${new Date().toISOString().slice(0,10)}.xlsx`;
+      await downloadFile(exportCaisseExcelUrl(dateFrom, dateTo), filename);
+      toast.success("Export Excel généré");
+    } catch (error) {
+      toast.error("Erreur lors de l'export Excel");
+      console.error(error);
+    }
   };
 
   const formatDate = (isoDate) => {
@@ -323,7 +330,7 @@ export default function CaissePage() {
 
       {/* Entry Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
             <DialogTitle className="font-outfit flex items-center gap-2">
               {formData.type === "entree" ? (

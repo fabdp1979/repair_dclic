@@ -393,7 +393,7 @@ export default function CommandesPage() {
 
       {/* Commande Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg bg-white" data-testid="commande-dialog">
           <DialogHeader>
             <DialogTitle className="font-outfit">
               {selectedCommande ? "Modifier la commande" : "Nouvelle commande"}

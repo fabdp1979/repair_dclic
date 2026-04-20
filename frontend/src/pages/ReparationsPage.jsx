@@ -25,7 +25,7 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getReparations, createReparation, updateReparation, deleteReparation,
   getClients, createClient, getClientPdfUrl, getInternalPdfUrl, 
-  sendRepairEmail, exportReparationsExcel, getQrCodeUrl
+  sendRepairEmail, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
 import { toast } from "sonner";
 import Fuse from "fuse.js";
@@ -319,7 +319,14 @@ export default function ReparationsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.open(exportReparationsExcel(), '_blank')}>
+          <Button variant="outline" onClick={async () => {
+            try {
+              await downloadFile(exportReparationsExcelUrl(), `reparations_${new Date().toISOString().slice(0,10)}.xlsx`);
+              toast.success("Export Excel généré");
+            } catch (e) {
+              toast.error("Erreur lors de l'export Excel");
+            }
+          }}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
