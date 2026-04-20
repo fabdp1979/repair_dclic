@@ -118,19 +118,17 @@ export const createCaisseEntry = (data) => api.post('/caisse', data);
 export const deleteCaisseEntry = (id) => api.delete(`/caisse/${id}`);
 
 // Exports — direct URLs
-export const exportReparationsExcelUrl = (dateFrom = '', dateTo = '') => 
-  `${API_BASE}/export/reparations/excel?${new URLSearchParams({ 
-    date_from: dateFrom || '', 
-    date_to: dateTo || '' 
-  })}`;
+const buildExportUrl = (endpoint, params) => {
+  const filtered = Object.entries(params).filter(([, v]) => v !== '' && v != null);
+  const qs = new URLSearchParams(filtered).toString();
+  return qs ? `${API_BASE}${endpoint}?${qs}` : `${API_BASE}${endpoint}`;
+};
 
-export const exportCaisseExcelUrl = (dateFrom = '', dateTo = '', year = '', month = '') => 
-  `${API_BASE}/export/caisse/excel?${new URLSearchParams({ 
-    date_from: dateFrom || '', 
-    date_to: dateTo || '',
-    year: year || '',
-    month: month || ''
-  })}`;
+export const exportReparationsExcelUrl = (dateFrom = '', dateTo = '') =>
+  buildExportUrl('/export/reparations/excel', { date_from: dateFrom, date_to: dateTo });
+
+export const exportCaisseExcelUrl = (dateFrom = '', dateTo = '', year = '', month = '') =>
+  buildExportUrl('/export/caisse/excel', { date_from: dateFrom, date_to: dateTo, year, month });
 
 // Backwards-compat aliases
 export const exportReparationsExcel = exportReparationsExcelUrl;
