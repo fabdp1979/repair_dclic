@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import uuid
 from datetime import datetime, timezone
 import asyncio
@@ -23,6 +23,7 @@ from unidecode import unidecode
 import io
 import base64
 from openpyxl import Workbook
+import openpyxl.utils
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from Levenshtein import ratio as levenshtein_ratio
 import qrcode
@@ -1551,190 +1552,340 @@ async def export_caisse_excel(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     year: Optional[int] = Query(None),
-    month: Optional[int] = Query(None)
+    month: Optional[int] = Query(None),
+    include_empty_months: bool = Query(True, description="Create a tab for every month between first and last entry, even empty ones"),
 ):
-    """Export cash register to Excel with monthly sheets (matching user's format)"""
-    
-    wb = Workbook()
-    
-    # Headers matching user's format (A to Q)
-    headers = ["DATE", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL", "CA ENCAISSEM", 
-               "DEPENSES", "SOLDE CAISSE", "CLIENTS", "FACTURéS", "TOTAL", "TOTAL",
-               "REMARQUES", "REGLEMENT", "NUMERO", "NOM"]
-    
-    header_fill = PatternFill(start_color="84CC16", end_color="84CC16", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    thin_border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
-    
-    # Get date range
-    if year and month:
-        start_date = f"{year}-{month:02d}-01"
-        if month == 12:
-            end_date = f"{year+1}-01-01"
-        else:
-            end_date = f"{year}-{month+1:02d}-01"
-    elif date_from and date_to:
-        start_date = date_from
-        end_date = date_to + "T23:59:59"
-    else:
-        # Default: last 12 months
-        now = datetime.now()
-        start_date = f"{now.year-1}-{now.month:02d}-01"
-        end_date = now.isoformat()
-    
-    # Get all entries
-    query = {"date": {"$gte": start_date, "$lte": end_date}}
+    """
+    Export Journal de caisse Excel — UN SEUL FICHIER avec UN ONGLET PAR MOIS.
+    Structure identique au modèle DCLIC : colonnes A-S, formules Excel actives
+    (TOTAL CA, SOLDE CAISSE, report M-1, TOTAL MOIS, HT/TVA) + onglet TOTAUX.
+    """
+    # ---------- 1. Récupération des données ----------
+    query = {}
+    if date_from or date_to:
+        d = {}
+        if date_from:
+            d["$gte"] = date_from
+        if date_to:
+            d["$lte"] = date_to + "T23:59:59"
+        query["date"] = d
+    elif year and month:
+        start = f"{year}-{month:02d}-01"
+        end = f"{year+1}-01-01" if month == 12 else f"{year}-{month+1:02d}-01"
+        query["date"] = {"$gte": start, "$lt": end}
+
     caisse_entries = await db.caisse.find(query, {"_id": 0}).sort("date", 1).to_list(10000)
     encaissement_entries = await db.encaissements.find(query, {"_id": 0}).sort("date", 1).to_list(10000)
-    
-    # Group by month
-    months_data = {}
-    
-    for entry in caisse_entries:
-        date_str = entry.get("date", "")[:7]  # YYYY-MM
-        if date_str not in months_data:
-            months_data[date_str] = []
-        months_data[date_str].append({
-            "date": entry.get("date", "")[:10],
-            "especes": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "especes" else 0,
-            "cheques": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "cheque" else 0,
-            "cb": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "cb" else 0,
-            "virement": entry.get("montant") if entry.get("type") == "entree" and entry.get("mode_paiement") == "virement" else 0,
-            "depenses": entry.get("montant") if entry.get("type") == "sortie" else 0,
-            "description": entry.get("description", ""),
-            "mode": entry.get("mode_paiement", "")
+
+    TYPE_LABELS = {
+        "forfait_63": "Forfait réparation 63€",
+        "rapide_30": "Réparation rapide 30€",
+        "express_10": "Réparation express 10€",
+        "devis_15": "Devis 15€",
+        "ventes": "Ventes",
+        "autre": "Autre recette",
+    }
+
+    # ---------- 2. Agrégation par (mois -> date -> totaux) ----------
+    # {month_key: {date_str: {especes, cheques, cb, virement, depenses, remarques, reglement, numero, nom}}}
+    months_data: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    def ensure_day(month_key: str, d: str):
+        months_data.setdefault(month_key, {})
+        months_data[month_key].setdefault(d, {
+            "especes": 0.0, "cheques": 0.0, "cb": 0.0, "virement": 0.0,
+            "depenses": 0.0, "remarques": [], "reglement": [],
+            "numero": [], "nom": [],
         })
-    
-    for entry in encaissement_entries:
-        date_str = entry.get("date", "")[:7]
-        if date_str not in months_data:
-            months_data[date_str] = []
+        return months_data[month_key][d]
 
-        # Support nouveau schéma (paiements array) et ancien (mode_paiement)
-        especes = 0
-        cheques = 0
-        cb = 0
-        virement = 0
-        total_ttc = entry.get("montant_ttc", entry.get("montant", 0)) or 0
+    for e in caisse_entries:
+        date_iso = e.get("date", "")
+        if not date_iso:
+            continue
+        mk = date_iso[:7]
+        d = date_iso[:10]
+        row = ensure_day(mk, d)
+        amount = float(e.get("montant") or 0)
+        mode = (e.get("mode_paiement") or "").lower()
+        if e.get("type") == "entree":
+            if mode == "especes":
+                row["especes"] += amount
+            elif mode == "cheque":
+                row["cheques"] += amount
+            elif mode == "cb":
+                row["cb"] += amount
+            elif mode == "virement":
+                row["virement"] += amount
+        else:  # sortie
+            row["depenses"] += amount
+        if e.get("description"):
+            row["remarques"].append(e["description"])
 
-        paiements = entry.get("paiements")
+    for enc in encaissement_entries:
+        date_iso = enc.get("date", "")
+        if not date_iso:
+            continue
+        mk = date_iso[:7]
+        d = date_iso[:10]
+        row = ensure_day(mk, d)
+        paiements = enc.get("paiements")
+        total_ttc = float(enc.get("montant_ttc", enc.get("montant", 0)) or 0)
         if isinstance(paiements, list) and paiements:
             for p in paiements:
                 mode = (p.get("mode") or "").lower()
                 montant = float(p.get("montant") or 0)
                 if mode == "especes":
-                    especes += montant
+                    row["especes"] += montant
                 elif mode == "cheque":
-                    cheques += montant
+                    row["cheques"] += montant
                 elif mode == "cb":
-                    cb += montant
+                    row["cb"] += montant
                 elif mode == "virement":
-                    virement += montant
+                    row["virement"] += montant
         else:
-            mode = (entry.get("mode_paiement") or "").lower()
+            mode = (enc.get("mode_paiement") or "").lower()
             if mode == "especes":
-                especes = total_ttc
+                row["especes"] += total_ttc
             elif mode == "cheque":
-                cheques = total_ttc
+                row["cheques"] += total_ttc
             elif mode == "cb":
-                cb = total_ttc
+                row["cb"] += total_ttc
             elif mode == "virement":
-                virement = total_ttc
+                row["virement"] += total_ttc
+        # Libellé : type + remarque
+        label = TYPE_LABELS.get(enc.get("type_recette"), enc.get("type_recette") or "Recette")
+        if enc.get("remarque"):
+            label = f"{label} — {enc['remarque']}"
+        row["remarques"].append(label)
+        if enc.get("reference"):
+            row["numero"].append(enc["reference"])
+        if enc.get("client_prenom") or enc.get("client_nom"):
+            row["nom"].append(f"{enc.get('client_prenom','')} {enc.get('client_nom','')}".strip())
 
-        months_data[date_str].append({
-            "date": entry.get("date", "")[:10],
-            "especes": especes,
-            "cheques": cheques,
-            "cb": cb,
-            "virement": virement,
-            "depenses": 0,
-            "description": entry.get("remarque", "") or entry.get("type_recette", ""),
-            "mode": entry.get("mode_paiement", "")
-        })
-    
-    # Create a sheet for each month
-    month_names = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                   "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-    
-    first_sheet = True
-    for month_key in sorted(months_data.keys()):
-        year_val, month_val = month_key.split("-")
-        sheet_name = f"{month_names[int(month_val)-1]} {year_val}"[:31]  # Excel limit
-        
-        if first_sheet:
-            ws = wb.active
-            ws.title = sheet_name
-            first_sheet = False
+    # ---------- 3. Si include_empty_months : créer une clé vide pour chaque mois entre min et max ----------
+    if months_data and include_empty_months:
+        from calendar import monthrange
+        keys = sorted(months_data.keys())
+        y, m = map(int, keys[0].split("-"))
+        y2, m2 = map(int, keys[-1].split("-"))
+        while (y, m) <= (y2, m2):
+            months_data.setdefault(f"{y}-{m:02d}", {})
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+
+    # ---------- 4. Création du classeur ----------
+    wb = Workbook()
+    wb.remove(wb.active)  # on crée tous les onglets manuellement
+
+    MONTH_ABBR = {
+        1: "Jan", 2: "Fév", 3: "Mars", 4: "Avril", 5: "Mai", 6: "Juin",
+        7: "Juillet", 8: "Aout", 9: "Sept", 10: "Oct", 11: "Nov", 12: "Déc",
+    }
+
+    def sheet_name_for(month_key: str) -> str:
+        y, m = map(int, month_key.split("-"))
+        return f"{MONTH_ABBR[m]} {str(y)[-2:]}"
+
+    header_fill = PatternFill(start_color="84CC16", end_color="84CC16", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=10)
+    sub_font = Font(italic=True, size=9, color="475569")
+    bold_font = Font(bold=True, size=10)
+    thin = Side(style="thin", color="CBD5E1")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # Colonnes de la feuille (A..S)
+    HEADERS_ROW1 = [
+        "DATE", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL CA",
+        "ENCAISSEM", "DEPENSES", "SOLDE CAISSE",
+        "CLIENTS FACTURéS", "",  # J:K fusionnées
+        "TOTAL ", "TOTAL",        # L:M fusionnées
+        "REMARQUES", "REGLEMENT", "NUMERO", "NOM\nFACTURE",
+        "GoCardLess\nmontant net", "Frais de\ncommission",
+    ]
+    HEADERS_ROW2 = [
+        "REPORT M-1", "", "", "", "", "",
+        "clients", "fourniss", "",     # I2 sera rempli par formule
+        "chèques", "CB",
+        "REM CHQ", "REM CB",
+        "", "VIREMENT", "FACTURE", "",
+        "", "",
+    ]
+    COL_WIDTHS = {
+        "A": 12, "B": 10, "C": 10, "D": 10, "E": 8, "F": 12,
+        "G": 12, "H": 12, "I": 14,
+        "J": 10, "K": 10, "L": 10, "M": 10,
+        "N": 24, "O": 12, "P": 12, "Q": 20, "R": 12, "S": 12,
+    }
+
+    ordered_month_keys = sorted(months_data.keys())
+    month_totals_by_sheet: List[Tuple[str, str, int]] = []  # [(month_key, sheet_name, total_mois_row_idx)]
+
+    for idx, month_key in enumerate(ordered_month_keys):
+        sname = sheet_name_for(month_key)[:31]
+        ws = wb.create_sheet(title=sname)
+
+        # Row 1 headers
+        for col_i, h in enumerate(HEADERS_ROW1, start=1):
+            c = ws.cell(row=1, column=col_i, value=h)
+            c.fill = header_fill
+            c.font = header_font
+            c.alignment = center
+            c.border = border
+        # Fusions ligne 1
+        ws.merge_cells("J1:K1")
+        ws.merge_cells("L1:M1")
+
+        # Row 2 sub-headers
+        for col_i, h in enumerate(HEADERS_ROW2, start=1):
+            c = ws.cell(row=2, column=col_i, value=h)
+            c.font = sub_font
+            c.alignment = center
+            c.border = border
+        # I2 = report du solde caisse du mois précédent
+        if idx == 0:
+            ws.cell(row=2, column=9, value=0)
         else:
-            ws = wb.create_sheet(title=sheet_name)
-        
-        # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.border = thin_border
-            cell.alignment = Alignment(horizontal='center')
-        
-        # Write data - columns A (DATE), B (ESPECES), C (CHEQUES), D (CB), F (TOTAL)
-        # Columns E, G, H, I, J, K, N, O, P, Q left empty for manual entry
-        entries = months_data[month_key]
-        running_total = 0
-        
-        for row_idx, entry in enumerate(entries, 2):
-            total_entrees = entry["especes"] + entry["cheques"] + entry["cb"] + entry.get("virement", 0)
-            running_total += total_entrees - entry["depenses"]
-            
-            # A - DATE
-            ws.cell(row=row_idx, column=1, value=entry["date"]).border = thin_border
-            # B - ESPECES
-            ws.cell(row=row_idx, column=2, value=entry["especes"] if entry["especes"] else "").border = thin_border
-            # C - CHEQUES
-            ws.cell(row=row_idx, column=3, value=entry["cheques"] if entry["cheques"] else "").border = thin_border
-            # D - CB
-            ws.cell(row=row_idx, column=4, value=entry["cb"] if entry["cb"] else "").border = thin_border
-            # E - PNF (manual)
-            ws.cell(row=row_idx, column=5, value="").border = thin_border
-            # F - TOTAL
-            ws.cell(row=row_idx, column=6, value=total_entrees if total_entrees else "").border = thin_border
-            # G - CA ENCAISSEM (manual)
-            ws.cell(row=row_idx, column=7, value="").border = thin_border
-            # H - DEPENSES (manual - we put system value)
-            ws.cell(row=row_idx, column=8, value=entry["depenses"] if entry["depenses"] else "").border = thin_border
-            # I - SOLDE CAISSE
-            ws.cell(row=row_idx, column=9, value=running_total).border = thin_border
-            # J to Q - Empty for manual entry
-            for col in range(10, 18):
-                ws.cell(row=row_idx, column=col, value="").border = thin_border
-        
-        # Adjust column widths
-        for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            ws.column_dimensions[column].width = max(max_length + 2, 10)
-    
-    # If no data, create at least one sheet
-    if first_sheet:
-        ws = wb.active
-        ws.title = "Journal"
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            cell.fill = header_fill
-            cell.font = header_font
-    
+            prev_month_key, prev_sname, prev_total_row = month_totals_by_sheet[idx - 1]
+            ws.cell(row=2, column=9, value=f"='{prev_sname}'!I{prev_total_row}")
+
+        # Rows 3.. : une ligne par jour trié
+        days = sorted(months_data[month_key].keys())
+        last_data_row = 2
+        for i, d in enumerate(days):
+            r = 3 + i
+            day = months_data[month_key][d]
+            # A: DATE
+            try:
+                ws.cell(row=r, column=1, value=datetime.fromisoformat(d)).number_format = "DD/MM/YYYY"
+            except Exception:
+                ws.cell(row=r, column=1, value=d)
+            # B/C/D: ESPECES/CHEQUES/CB
+            if day["especes"]:
+                ws.cell(row=r, column=2, value=round(day["especes"], 2))
+            if day["cheques"]:
+                ws.cell(row=r, column=3, value=round(day["cheques"], 2))
+            if day["cb"]:
+                ws.cell(row=r, column=4, value=round(day["cb"], 2))
+            # F: TOTAL CA = SUM(B:D)
+            ws.cell(row=r, column=6, value=f"=SUM(B{r}:D{r})")
+            # H: DEPENSES
+            if day["depenses"]:
+                ws.cell(row=r, column=8, value=round(day["depenses"], 2))
+            # I: SOLDE CAISSE = I_prev + B + G - H
+            ws.cell(row=r, column=9, value=f"=I{r-1}+B{r}+G{r}-H{r}")
+            # L: REM CHQ = C + J  ; M: REM CB = D + K
+            ws.cell(row=r, column=12, value=f"=C{r}+J{r}")
+            ws.cell(row=r, column=13, value=f"=D{r}+K{r}")
+            # N: REMARQUES
+            if day["remarques"]:
+                ws.cell(row=r, column=14, value=" | ".join(day["remarques"])[:250])
+            # O: REGLEMENT (virements)
+            if day["virement"]:
+                ws.cell(row=r, column=15, value=round(day["virement"], 2))
+            # P: NUMERO
+            if day["numero"]:
+                ws.cell(row=r, column=16, value=", ".join(day["numero"]))
+            # Q: NOM
+            if day["nom"]:
+                ws.cell(row=r, column=17, value=", ".join(day["nom"]))
+            last_data_row = r
+
+        # Ligne TOTAL MOIS
+        total_row = max(last_data_row + 1, 3)
+        ws.cell(row=total_row, column=1, value="TOTAL MOIS").font = bold_font
+        for col_letter, col_i in [("B", 2), ("C", 3), ("D", 4), ("E", 5), ("F", 6),
+                                   ("G", 7), ("H", 8), ("J", 10), ("K", 11),
+                                   ("L", 12), ("M", 13), ("O", 15), ("R", 18), ("S", 19)]:
+            if last_data_row >= 3:
+                cell = ws.cell(row=total_row, column=col_i,
+                               value=f"=SUM({col_letter}3:{col_letter}{last_data_row})")
+                cell.font = bold_font
+        # I TOTAL MOIS = solde caisse final
+        if last_data_row >= 3:
+            ws.cell(row=total_row, column=9, value=f"=I{last_data_row}").font = bold_font
+        else:
+            ws.cell(row=total_row, column=9, value=f"=I2").font = bold_font
+
+        # Ligne HT / TVA
+        ht_row = total_row + 2
+        tva_row = total_row + 3
+        ws.cell(row=ht_row, column=5, value="HT").font = bold_font
+        ws.cell(row=ht_row, column=6, value=f"=F{total_row}/1.2")
+        ws.cell(row=tva_row, column=5, value="TVA").font = bold_font
+        ws.cell(row=tva_row, column=6, value=f"=F{ht_row}*0.2")
+
+        # Largeurs colonnes
+        for col_letter, w in COL_WIDTHS.items():
+            ws.column_dimensions[col_letter].width = w
+        ws.row_dimensions[1].height = 28
+        ws.row_dimensions[2].height = 18
+        ws.freeze_panes = "A3"
+
+        month_totals_by_sheet.append((month_key, sname, total_row))
+
+    # ---------- 5. Onglet TOTAUX ----------
+    ws = wb.create_sheet(title="TOTAUX")
+    ws.cell(row=1, column=5, value=f"SOMME PERIODE").font = bold_font
+
+    tot_headers = ["MOIS", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL CA",
+                   "ENCAISSEM", "DEPENSES", "SOLDE CAISSE", "CHQ+REM", "CB+REM"]
+    for col_i, h in enumerate(tot_headers, start=1):
+        c = ws.cell(row=3, column=col_i, value=h)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = center
+        c.border = border
+
+    for i, (month_key, sname, total_row) in enumerate(month_totals_by_sheet):
+        r = 5 + i
+        y, m = map(int, month_key.split("-"))
+        ws.cell(row=r, column=1, value=f"{MONTH_ABBR[m]} {y}")
+        for col_i, col_letter in enumerate(["B", "C", "D", "E", "F", "G", "H", "I", "L", "M"], start=2):
+            ws.cell(row=r, column=col_i, value=f"='{sname}'!{col_letter}{total_row}")
+
+    # Ligne TOTAUX globale
+    if month_totals_by_sheet:
+        last = 5 + len(month_totals_by_sheet) - 1
+        tot_row = last + 2
+        ws.cell(row=tot_row, column=1, value="TOTAUX :").font = bold_font
+        for col_i in range(2, 12):
+            letter = openpyxl.utils.get_column_letter(col_i)
+            ws.cell(row=tot_row, column=col_i, value=f"=SUM({letter}5:{letter}{last})").font = bold_font
+
+        # TOTAL CA global
+        ws.cell(row=tot_row + 2, column=5, value="TOTAL CA :").font = bold_font
+        ws.cell(row=tot_row + 2, column=6, value=f"=F{tot_row}+I{tot_row}+J{tot_row}+L{tot_row}").font = bold_font
+
+    for col_letter, w in {"A": 12, "B": 11, "C": 11, "D": 11, "E": 10, "F": 12,
+                          "G": 12, "H": 12, "I": 14, "J": 12, "K": 12}.items():
+        ws.column_dimensions[col_letter].width = w
+
+    # Pas de données -> on crée quand même un onglet courant
+    if not ordered_month_keys:
+        now = datetime.now()
+        sname = f"{MONTH_ABBR[now.month]} {str(now.year)[-2:]}"
+        wb.remove(ws)
+        ws2 = wb.create_sheet(title=sname)
+        for col_i, h in enumerate(HEADERS_ROW1, start=1):
+            c = ws2.cell(row=1, column=col_i, value=h)
+            c.fill = header_fill
+            c.font = header_font
+            c.alignment = center
+        ws2.merge_cells("J1:K1")
+        ws2.merge_cells("L1:M1")
+        for col_letter, w in COL_WIDTHS.items():
+            ws2.column_dimensions[col_letter].width = w
+        wb.create_sheet(title="TOTAUX")
+
+    # ---------- 6. Sortie ----------
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
-    
+
     filename = f"journal_caisse_{datetime.now().strftime('%Y%m%d')}.xlsx"
     return Response(
         content=buffer.getvalue(),
