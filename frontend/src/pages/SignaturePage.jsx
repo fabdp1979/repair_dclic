@@ -79,7 +79,7 @@ export default function SignaturePage() {
       toast.error("Veuillez signer avant de valider");
       return;
     }
-    const b64 = sigRef.current.getTrimmedCanvas().toDataURL("image/png");
+    const b64 = sigRef.current.toDataURL("image/png");
     setSaving(true);
     try {
       await saveSignature(reparationId, {
