@@ -1127,7 +1127,7 @@ async def get_client_pdf(reparation_id: str):
     return Response(
         content=pdf_content,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
 
 @api_router.get("/reparations/{reparation_id}/pdf/interne")
@@ -1151,7 +1151,7 @@ async def get_internal_pdf(reparation_id: str):
     return Response(
         content=pdf_content,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
 
 @api_router.get("/reparations/{reparation_id}/qrcode")
