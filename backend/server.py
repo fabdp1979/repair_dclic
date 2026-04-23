@@ -1054,6 +1054,13 @@ async def save_signature(reparation_id: str, payload: SignatureInput):
             "date_modification": now,
         }}
     )
+    # Libère l'iPad terminal si cette fiche y était assignée
+    state = await db.ipad_state.find_one({"_id": "current"})
+    if state and state.get("reparation_id") == reparation_id:
+        await db.ipad_state.update_one(
+            {"_id": "current"},
+            {"$set": {"reparation_id": None, "assigned_at": None}},
+        )
     return {"ok": True, "date_signature": now}
 
 @api_router.delete("/reparations/{reparation_id}/signature")
@@ -1098,6 +1105,117 @@ async def get_public_tracking(tracking_id: str):
         "materiel": materiel_list,
         "statut": rep.get("statut"),
         "urgence": rep.get("urgence", False)
+    }
+
+# ===================== IPAD TERMINAL STATE =====================
+
+class IpadAssignInput(BaseModel):
+    reparation_id: str
+    kiosk: bool = True
+
+ASSIGNMENT_TTL_SECONDS = 30 * 60  # 30 minutes
+
+async def _get_ipad_state() -> dict:
+    state = await db.ipad_state.find_one({"_id": "current"})
+    if not state:
+        state = {
+            "_id": "current",
+            "reparation_id": None,
+            "assigned_at": None,
+            "kiosk": True,
+            "last_heartbeat_at": None,
+        }
+        await db.ipad_state.insert_one(state)
+    return state
+
+def _ipad_is_online(state: dict) -> bool:
+    hb = state.get("last_heartbeat_at")
+    if not hb:
+        return False
+    try:
+        last = datetime.fromisoformat(hb.replace("Z", "+00:00")) if isinstance(hb, str) else hb
+        now = datetime.now(timezone.utc)
+        return (now - last).total_seconds() < 15
+    except Exception:
+        return False
+
+@api_router.get("/ipad/current")
+async def ipad_current():
+    """iPad polling endpoint — renvoie la fiche assignée, ou null."""
+    state = await _get_ipad_state()
+    reparation_id = state.get("reparation_id")
+    assigned_at = state.get("assigned_at")
+
+    # Auto-expire stale assignments
+    if reparation_id and assigned_at:
+        try:
+            ts = datetime.fromisoformat(assigned_at.replace("Z", "+00:00")) if isinstance(assigned_at, str) else assigned_at
+            age = (datetime.now(timezone.utc) - ts).total_seconds()
+            if age > ASSIGNMENT_TTL_SECONDS:
+                await db.ipad_state.update_one(
+                    {"_id": "current"},
+                    {"$set": {"reparation_id": None, "assigned_at": None}},
+                )
+                reparation_id = None
+                assigned_at = None
+        except Exception:
+            pass
+
+    return {
+        "reparation_id": reparation_id,
+        "assigned_at": assigned_at,
+        "kiosk": state.get("kiosk", True),
+    }
+
+@api_router.post("/ipad/assign")
+async def ipad_assign(payload: IpadAssignInput):
+    """PC → iPad : envoyer une fiche de réparation à signer."""
+    rep = await db.reparations.find_one({"id": payload.reparation_id}, {"_id": 0})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.ipad_state.update_one(
+        {"_id": "current"},
+        {"$set": {
+            "reparation_id": payload.reparation_id,
+            "assigned_at": now,
+            "kiosk": bool(payload.kiosk),
+        }},
+        upsert=True,
+    )
+    return {"ok": True, "assigned_at": now, "kiosk": payload.kiosk}
+
+@api_router.post("/ipad/release")
+async def ipad_release():
+    """Libère l'iPad (retour écran d'accueil)."""
+    await db.ipad_state.update_one(
+        {"_id": "current"},
+        {"$set": {"reparation_id": None, "assigned_at": None}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+@api_router.put("/ipad/heartbeat")
+async def ipad_heartbeat():
+    """L'iPad signale qu'il est connecté (toutes les 3-10 s)."""
+    now = datetime.now(timezone.utc).isoformat()
+    await db.ipad_state.update_one(
+        {"_id": "current"},
+        {"$set": {"last_heartbeat_at": now}},
+        upsert=True,
+    )
+    return {"ok": True, "at": now}
+
+@api_router.get("/ipad/status")
+async def ipad_status():
+    """PC → indicateur 'iPad en ligne' + infos assignation courante."""
+    state = await _get_ipad_state()
+    return {
+        "online": _ipad_is_online(state),
+        "last_heartbeat_at": state.get("last_heartbeat_at"),
+        "reparation_id": state.get("reparation_id"),
+        "assigned_at": state.get("assigned_at"),
+        "kiosk": state.get("kiosk", True),
     }
 
 # ===================== PDF GENERATION =====================

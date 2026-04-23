@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import SignatureCanvas from "react-signature-canvas";
 import { CheckCircle2, Eraser, RotateCcw, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -11,8 +11,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import FullscreenGuard from "../components/FullscreenGuard";
-import { getReparationPublic, saveSignature, deleteSignature } from "../lib/api";
+import {
+  getReparationPublic, saveSignature, deleteSignature,
+  ipadHeartbeat, ipadCurrent, ipadRelease,
+} from "../lib/api";
 import { toast } from "sonner";
+
+const AFTER_SIGN_RETURN_MS = 5000; // retour /ipad après signature
+const SIGNER_POLL_MS = 10000;      // polling lent pendant qu'on est sur /signer
 
 const CONDITION_LABELS = {
   prise_en_charge: "Prise en charge du matériel",
@@ -27,6 +33,7 @@ const CONDITION_LABELS = {
 
 export default function SignaturePage() {
   const { reparationId } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accepted, setAccepted] = useState(false);
@@ -42,6 +49,44 @@ export default function SignaturePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reparationId]);
+
+  // Heartbeat pendant qu'on est sur /signer (indicateur "iPad en ligne" PC)
+  useEffect(() => {
+    const send = () => { ipadHeartbeat().catch(() => {}); };
+    send();
+    const t = setInterval(send, 8000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Polling lent : seulement en mode kiosque (terminal iPad)
+  useEffect(() => {
+    if (success) return;
+    const isKiosk = new URLSearchParams(window.location.search).get("fullscreen") === "1";
+    if (!isKiosk) return;
+    const check = async () => {
+      try {
+        const { data: st } = await ipadCurrent();
+        const assigned = st?.reparation_id;
+        if (!assigned) {
+          navigate("/ipad");
+        } else if (assigned !== reparationId) {
+          const fs = st.kiosk ? "?fullscreen=1" : "";
+          navigate(`/signer/${assigned}${fs}`);
+        }
+      } catch {}
+    };
+    const t = setInterval(check, SIGNER_POLL_MS);
+    return () => clearInterval(t);
+  }, [reparationId, navigate, success]);
+
+  // Retour auto après signature (5s) — uniquement en mode kiosque/terminal
+  useEffect(() => {
+    if (!success) return;
+    const isKiosk = new URLSearchParams(window.location.search).get("fullscreen") === "1";
+    if (!isKiosk) return;
+    const t = setTimeout(() => navigate("/ipad"), AFTER_SIGN_RETURN_MS);
+    return () => clearTimeout(t);
+  }, [success, navigate]);
 
   const load = async () => {
     try {

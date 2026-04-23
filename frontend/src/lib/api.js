@@ -68,6 +68,14 @@ export const getReparationPublic = (id) => api.get(`/reparations/${id}/public`);
 export const saveSignature = (id, data) => api.post(`/reparations/${id}/signature`, data);
 export const deleteSignature = (id) => api.delete(`/reparations/${id}/signature`);
 
+// iPad terminal sync
+export const ipadCurrent = () => api.get(`/ipad/current`);
+export const ipadAssign = (reparation_id, kiosk = true) =>
+  api.post(`/ipad/assign`, { reparation_id, kiosk });
+export const ipadRelease = () => api.post(`/ipad/release`);
+export const ipadHeartbeat = () => api.put(`/ipad/heartbeat`);
+export const ipadStatus = () => api.get(`/ipad/status`);
+
 // Public Tracking
 export const getPublicTracking = (trackingId) => api.get(`/suivi/${trackingId}`);
 
