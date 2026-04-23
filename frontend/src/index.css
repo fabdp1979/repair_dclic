@@ -192,6 +192,27 @@ input:-webkit-autofill:active {
     --primary: 82 78% 45%;
 }
 
+/* =================== iPad MODE =================== */
+/* Active via <div class="ipad-mode"> — typographie + espacement XL */
+.ipad-mode {
+    font-size: 1.125rem; /* 18px base */
+}
+.ipad-mode button,
+.ipad-mode [role="button"] {
+    min-height: 48px;
+}
+.ipad-mode input,
+.ipad-mode select,
+.ipad-mode textarea {
+    font-size: 1.125rem;
+}
+/* Désactive sélection texte accidentelle tactile */
+.ipad-mode canvas {
+    touch-action: none;
+    user-select: none;
+}
+/* ============================================================ */
+
 /* Data table styling */
 .data-table {
     width: 100%;

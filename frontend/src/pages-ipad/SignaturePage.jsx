@@ -10,6 +10,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import FullscreenGuard from "../components/FullscreenGuard";
 import { getReparationPublic, saveSignature, deleteSignature } from "../lib/api";
 import { toast } from "sonner";
 
@@ -46,7 +47,7 @@ export default function SignaturePage() {
     try {
       const { data: d } = await getReparationPublic(reparationId);
       setData(d);
-    } catch (e) {
+    } catch {
       toast.error("Réparation introuvable");
     } finally {
       setLoading(false);
@@ -65,7 +66,7 @@ export default function SignaturePage() {
       setAccepted(false);
       setShowResignConfirm(false);
       toast.success("Signature précédente effacée. Veuillez signer à nouveau.");
-    } catch (e) {
+    } catch {
       toast.error("Erreur lors de la réinitialisation");
     }
   };
@@ -98,18 +99,18 @@ export default function SignaturePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-[#84CC16]" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-[#84CC16]" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+      <div className="min-h-screen flex items-center justify-center p-8">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto text-red-500 mb-4" />
-          <p className="text-slate-700 font-medium">Fiche de réparation introuvable</p>
+          <AlertTriangle className="w-14 h-14 mx-auto text-red-500 mb-4" />
+          <p className="text-slate-700 font-medium text-xl">Fiche de réparation introuvable</p>
         </div>
       </div>
     );
@@ -117,14 +118,12 @@ export default function SignaturePage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+      <div className="min-h-screen flex items-center justify-center p-8">
         <div className="text-center max-w-md">
-          <CheckCircle2 className="w-20 h-20 mx-auto text-[#84CC16] mb-4" />
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Merci !</h1>
-          <p className="text-slate-600 text-lg">
-            Votre signature a été enregistrée avec succès.
-          </p>
-          <p className="text-slate-500 mt-4 text-sm">
+          <CheckCircle2 className="w-24 h-24 mx-auto text-[#84CC16] mb-6" />
+          <h1 className="text-4xl font-bold text-slate-900 mb-4">Merci !</h1>
+          <p className="text-slate-600 text-2xl">Votre signature a été enregistrée avec succès.</p>
+          <p className="text-slate-500 mt-6 text-lg">
             Vous pouvez rendre la tablette au technicien.
           </p>
         </div>
@@ -134,99 +133,101 @@ export default function SignaturePage() {
 
   const alreadySigned = !!data.signature_b64;
 
-  return (
-    <div className="min-h-screen bg-slate-50 pb-8" data-testid="signature-page">
-      {/* Header */}
+  const content = (
+    <div className="min-h-screen pb-12" data-testid="signature-page">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900">
               {data.company?.name || "DCLIC INFORMATIQUE"}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
+            <p className="text-base sm:text-lg text-slate-500 mt-1">
               Fiche n° <span className="font-mono text-[#84CC16] font-semibold">{data.numero}</span>
               {" — "}
               {data.date_creation}
             </p>
           </div>
           {alreadySigned && (
-            <span className="hidden sm:inline-flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-sm font-medium border border-green-200">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="hidden sm:inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full text-base font-medium border border-green-200">
+              <CheckCircle2 className="w-5 h-5" />
               Déjà signé
             </span>
           )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         {/* 1. Conditions (bloc principal) */}
-        <section className="bg-white rounded-lg border border-slate-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+        <section className="bg-white rounded-xl border border-slate-200 shadow-sm">
+          <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 rounded-t-xl">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
               Conditions de réparation
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-lg text-slate-500 mt-2">
               Merci de lire attentivement avant de signer.
             </p>
           </div>
-          <div className="px-6 py-6 max-h-[420px] overflow-y-auto space-y-5">
-            {Object.entries(CONDITION_LABELS).map(([key, label]) => (
-              data.conditions?.[key] && (
-                <div key={key} data-testid={`condition-${key}`}>
-                  <h3 className="font-semibold text-slate-900 mb-1">{label}</h3>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {data.conditions[key]}
-                  </p>
-                </div>
-              )
-            ))}
+          <div className="px-8 py-8 max-h-[520px] overflow-y-auto space-y-7">
+            {Object.entries(CONDITION_LABELS).map(
+              ([key, label]) =>
+                data.conditions?.[key] && (
+                  <div key={key} data-testid={`condition-${key}`}>
+                    <h3 className="font-bold text-slate-900 mb-2 text-xl">{label}</h3>
+                    <p className="text-lg text-slate-700 leading-relaxed">
+                      {data.conditions[key]}
+                    </p>
+                  </div>
+                )
+            )}
           </div>
         </section>
 
         {/* 2. Case à cocher obligatoire */}
-        <section className="bg-white rounded-lg border-2 border-[#84CC16] shadow-sm p-5">
-          <label className="flex items-start gap-3 cursor-pointer">
+        <section className="bg-white rounded-xl border-2 border-[#84CC16] shadow-sm p-6">
+          <label className="flex items-start gap-4 cursor-pointer">
             <Checkbox
               checked={accepted}
               onCheckedChange={(v) => setAccepted(!!v)}
-              className="mt-1 w-6 h-6"
+              className="mt-1 w-7 h-7"
               data-testid="accept-conditions-checkbox"
             />
-            <span className="text-slate-900 text-base sm:text-lg font-medium select-none">
-              Je reconnais avoir pris connaissance des conditions de réparation
-              et je les accepte sans réserve.
+            <span className="text-slate-900 text-xl font-medium select-none leading-snug">
+              Je reconnais avoir pris connaissance des conditions de réparation et je les accepte
+              sans réserve.
             </span>
           </label>
         </section>
 
         {/* 3. Informations en rappel */}
-        <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">
+        <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <h2 className="text-base font-semibold uppercase tracking-wide text-slate-500 mb-4">
             Rappel des informations
           </h2>
-          <div className="grid sm:grid-cols-2 gap-3 text-sm">
+          <div className="grid sm:grid-cols-2 gap-5 text-lg">
             <div>
               <p className="text-slate-500">Client</p>
-              <p className="font-medium text-slate-900">{data.client_prenom} {data.client_nom}</p>
+              <p className="font-semibold text-slate-900">
+                {data.client_prenom} {data.client_nom}
+              </p>
             </div>
             <div>
               <p className="text-slate-500">Téléphone</p>
-              <p className="font-medium text-slate-900">{data.client_telephone || "-"}</p>
+              <p className="font-semibold text-slate-900">{data.client_telephone || "-"}</p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-slate-500">Appareil</p>
-              <p className="font-medium text-slate-900">
+              <p className="font-semibold text-slate-900">
                 {data.materiel?.length ? data.materiel.join(", ") : "-"}
               </p>
             </div>
             <div className="sm:col-span-2">
               <p className="text-slate-500">Problème</p>
-              <p className="font-medium text-slate-900">{data.description_panne || "-"}</p>
+              <p className="font-semibold text-slate-900">{data.description_panne || "-"}</p>
             </div>
             {data.urgence && (
               <div className="sm:col-span-2">
-                <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                  <AlertTriangle className="w-3 h-3" /> Réparation urgente (+25€)
+                <span className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-sm font-medium">
+                  <AlertTriangle className="w-4 h-4" /> Réparation urgente (+25€)
                 </span>
               </div>
             )}
@@ -235,47 +236,51 @@ export default function SignaturePage() {
 
         {/* 4. Signature */}
         {alreadySigned ? (
-          <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <CheckCircle2 className="w-6 h-6 text-[#84CC16]" />
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <CheckCircle2 className="w-10 h-10 text-[#84CC16]" />
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Signature déjà enregistrée</h2>
-                <p className="text-sm text-slate-500">
+                <h2 className="text-2xl font-bold text-slate-900">Signature déjà enregistrée</h2>
+                <p className="text-base text-slate-500 mt-1">
                   {data.nom_signataire ? `Par ${data.nom_signataire} ` : ""}
                   le {data.date_signature?.slice(0, 10)}
                 </p>
               </div>
             </div>
-            <div className="bg-slate-50 rounded border border-slate-200 p-4 inline-block">
-              <img src={data.signature_b64} alt="Signature" className="max-h-24" />
+            <div className="bg-slate-50 rounded border border-slate-200 p-5 inline-block">
+              <img src={data.signature_b64} alt="Signature" className="max-h-32" />
             </div>
-            <div className="mt-4">
+            <div className="mt-6">
               <Button
                 type="button"
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-red-600 border-red-200 hover:bg-red-50 h-14 text-lg px-6"
                 onClick={() => setShowResignConfirm(true)}
                 data-testid="resign-btn"
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
+                <RotateCcw className="w-5 h-5 mr-2" />
                 Re-signer (efface la précédente)
               </Button>
             </div>
           </section>
         ) : (
-          <section className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 space-y-4">
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 mb-1">Votre signature</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Votre signature</h2>
+              <p className="text-lg text-slate-500">
                 Signez dans la zone ci-dessous avec votre doigt (ou la souris).
               </p>
             </div>
 
-            <div className={`border-2 rounded-lg overflow-hidden ${accepted ? "border-[#84CC16]" : "border-slate-200 opacity-60"}`}>
+            <div
+              className={`border-2 rounded-xl overflow-hidden transition ${
+                accepted ? "border-[#84CC16]" : "border-slate-200 opacity-60"
+              }`}
+            >
               <SignatureCanvas
                 ref={sigRef}
                 canvasProps={{
-                  className: "w-full h-48 sm:h-56 bg-white cursor-crosshair touch-none",
+                  className: "w-full h-[320px] bg-white cursor-crosshair touch-none",
                   "data-testid": "signature-canvas",
                 }}
                 penColor="#0F172A"
@@ -284,56 +289,57 @@ export default function SignaturePage() {
               />
             </div>
 
-            {/* Signataire différent */}
-            <div className="space-y-2 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <div className="space-y-3 pt-2">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <Checkbox
                   checked={differentSignataire}
                   onCheckedChange={(v) => setDifferentSignataire(!!v)}
+                  className="w-6 h-6"
                   data-testid="different-signataire-checkbox"
                 />
-                <span className="text-sm text-slate-700">
+                <span className="text-lg text-slate-700">
                   Le signataire est différent du client
                 </span>
               </label>
               {differentSignataire && (
                 <div>
-                  <Label htmlFor="nom-signataire" className="text-sm">Nom du signataire</Label>
+                  <Label htmlFor="nom-signataire" className="text-base">
+                    Nom du signataire
+                  </Label>
                   <Input
                     id="nom-signataire"
                     value={nomSignataire}
                     onChange={(e) => setNomSignataire(e.target.value)}
                     placeholder="Ex : Marie Dupont (conjoint)"
+                    className="h-14 text-lg"
                     data-testid="nom-signataire-input"
                   />
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-4 pt-2">
               <Button
                 type="button"
                 variant="outline"
-                size="lg"
                 onClick={handleClear}
                 disabled={!hasStrokes}
-                className="sm:w-40"
+                className="h-[72px] text-xl sm:w-52"
                 data-testid="clear-signature-btn"
               >
-                <Eraser className="w-5 h-5 mr-2" />
+                <Eraser className="w-6 h-6 mr-2" />
                 Effacer
               </Button>
               <Button
                 type="button"
-                size="lg"
-                className="flex-1 bg-[#84CC16] hover:bg-[#65A30D] text-white text-lg py-6 disabled:opacity-50"
+                className="flex-1 bg-[#84CC16] hover:bg-[#65A30D] text-white text-2xl h-[72px] disabled:opacity-50"
                 onClick={handleValidate}
                 disabled={!accepted || !hasStrokes || saving}
                 data-testid="validate-signature-btn"
               >
                 {saving ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
                     Enregistrement...
                   </>
                 ) : (
@@ -342,7 +348,7 @@ export default function SignaturePage() {
               </Button>
             </div>
             {(!accepted || !hasStrokes) && (
-              <p className="text-xs text-slate-500 text-center">
+              <p className="text-base text-slate-500 text-center">
                 {!accepted
                   ? "⚠ Cochez la case des conditions pour activer la signature"
                   : "⚠ Dessinez votre signature pour pouvoir valider"}
@@ -352,7 +358,6 @@ export default function SignaturePage() {
         )}
       </main>
 
-      {/* Confirm re-sign */}
       <AlertDialog open={showResignConfirm} onOpenChange={setShowResignConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -372,4 +377,6 @@ export default function SignaturePage() {
       </AlertDialog>
     </div>
   );
+
+  return <FullscreenGuard>{content}</FullscreenGuard>;
 }

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { 
   Search, Plus, Edit, Trash2, FileText, Send, CheckCircle,
   Wrench, Download, Clock, AlertTriangle, Link as LinkIcon, QrCode,
-  UserPlus
+  UserPlus, Lock
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -279,6 +279,11 @@ export default function ReparationsPage() {
     window.open(url, "_blank", "noopener");
   };
 
+  const openSignatureKiosque = (reparation) => {
+    const url = `${window.location.origin}/signer/${reparation.id}?fullscreen=1`;
+    window.open(url, "_blank", "noopener");
+  };
+
   const copySignatureLink = async (reparation) => {
     const url = `${window.location.origin}/signer/${reparation.id}`;
     try {
@@ -492,6 +497,17 @@ export default function ReparationsPage() {
                       >
                         <Edit className="w-4 h-4 mr-1" />
                         Faire signer
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-slate-700 border-slate-300 hover:bg-slate-100"
+                        onClick={() => openSignatureKiosque(reparation)}
+                        title="Mode kiosque plein écran (tablette dédiée client)"
+                        data-testid={`sign-kiosque-btn-${reparation.id}`}
+                      >
+                        <Lock className="w-4 h-4" />
                       </Button>
 
                       <Button
