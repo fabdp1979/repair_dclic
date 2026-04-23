@@ -92,6 +92,7 @@ export default function ReparationsPage() {
   const [clientFormData, setClientFormData] = useState(emptyClient);
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(null);
+  const [forceEmailDialog, setForceEmailDialog] = useState({ open: false, reparation: null });
 
   useEffect(() => {
     loadData();
@@ -248,7 +249,7 @@ export default function ReparationsPage() {
     }
   };
 
-  const handleSendEmail = async (reparation) => {
+  const handleSendEmail = async (reparation, force = false) => {
     if (!reparation.client_email) {
       toast.error("Ce client n'a pas d'adresse email");
       return;
@@ -256,13 +257,35 @@ export default function ReparationsPage() {
 
     setSendingEmail(reparation.id);
     try {
-      await sendRepairEmail(reparation.id);
+      await sendRepairEmail(reparation.id, force);
       toast.success(`Email envoyé à ${reparation.client_email}`);
+      setForceEmailDialog({ open: false, reparation: null });
+      loadData();
     } catch (error) {
-      const message = error.response?.data?.detail || "Erreur lors de l'envoi";
-      toast.error(message);
+      if (error.response?.status === 409) {
+        // Client n'a pas signé — proposer de forcer ou ouvrir la signature
+        setForceEmailDialog({ open: true, reparation });
+      } else {
+        const message = error.response?.data?.detail || "Erreur lors de l'envoi";
+        toast.error(typeof message === "string" ? message : "Erreur lors de l'envoi");
+      }
     } finally {
       setSendingEmail(null);
+    }
+  };
+
+  const openSignaturePage = (reparation) => {
+    const url = `${window.location.origin}/signer/${reparation.id}`;
+    window.open(url, "_blank", "noopener");
+  };
+
+  const copySignatureLink = async (reparation) => {
+    const url = `${window.location.origin}/signer/${reparation.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien de signature copié");
+    } catch {
+      toast.error("Impossible de copier le lien");
     }
   };
 
@@ -429,7 +452,24 @@ export default function ReparationsPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {/* Signature status badge */}
+                      {reparation.signature_b64 ? (
+                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium border border-green-200" title={`Signé le ${reparation.date_signature?.slice(0,10)}`}>
+                          <CheckCircle className="w-3 h-3" />
+                          Signée
+                        </span>
+                      ) : reparation.envoye_sans_signature ? (
+                        <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-full text-xs font-medium border border-orange-200">
+                          <AlertTriangle className="w-3 h-3" />
+                          Sans signature
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-600 px-2 py-1 rounded-full text-xs font-medium border border-slate-200">
+                          Non signée
+                        </span>
+                      )}
+
                       {reparation.statut_interne !== "Terminé" && (
                         <Button
                           variant="outline"
@@ -441,7 +481,28 @@ export default function ReparationsPage() {
                           Terminer
                         </Button>
                       )}
-                      
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[#84CC16] border-[#84CC16]/30 hover:bg-[#84CC16]/10"
+                        onClick={() => openSignaturePage(reparation)}
+                        title="Ouvrir la page de signature tablette (nouvel onglet)"
+                        data-testid={`sign-btn-${reparation.id}`}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Faire signer
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copySignatureLink(reparation)}
+                        title="Copier le lien de signature"
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                      </Button>
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -466,7 +527,7 @@ export default function ReparationsPage() {
                         onClick={() => copyTrackingLink(reparation)}
                         title="Copier lien de suivi"
                       >
-                        <LinkIcon className="w-4 h-4" />
+                        <QrCode className="w-4 h-4" />
                       </Button>
                       
                       <Button
@@ -814,6 +875,44 @@ export default function ReparationsPage() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Force send email dialog (no signature) */}
+      <AlertDialog
+        open={forceEmailDialog.open}
+        onOpenChange={(o) => !o && setForceEmailDialog({ open: false, reparation: null })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Le client n'a pas signé</AlertDialogTitle>
+            <AlertDialogDescription>
+              Impossible d'envoyer : le client n'a pas signé. Vous pouvez :
+              <br /><br />
+              <strong>• Faire signer le client</strong> (recommandé) : ouvrez la page de signature sur tablette.
+              <br />
+              <strong>• Envoyer sans signature (cas exceptionnel)</strong> : le PDF mentionnera « Document envoyé sans signature du client ».
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                openSignaturePage(forceEmailDialog.reparation);
+                setForceEmailDialog({ open: false, reparation: null });
+              }}
+            >
+              Ouvrir la signature
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleSendEmail(forceEmailDialog.reparation, true)}
+              className="bg-orange-500 hover:bg-orange-600"
+              data-testid="force-send-email-btn"
+            >
+              Envoyer sans signature
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

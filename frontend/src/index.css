@@ -179,6 +179,19 @@ input:-webkit-autofill:active {
     -webkit-text-fill-color: rgb(15, 23, 42) !important;
 }
 
+/* Force white background on active tabs (anti fond jaune) */
+[role="tab"][data-state="active"] {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+}
+
+/* Harmonise les rings/focus sur le vert pomme exact */
+:root {
+    --ring: 82 78% 45%;
+    --primary: 82 78% 45%;
+}
+
 /* Data table styling */
 .data-table {
     width: 100%;

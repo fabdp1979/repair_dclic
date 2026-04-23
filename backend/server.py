@@ -197,6 +197,11 @@ class Reparation(BaseModel):
     client_prenom: Optional[str] = None
     client_email: Optional[str] = None
     client_telephone: Optional[str] = None
+    # Signature client
+    signature_b64: Optional[str] = None
+    date_signature: Optional[str] = None
+    nom_signataire: Optional[str] = None
+    envoye_sans_signature: Optional[bool] = False
 
 # Commande Models
 class CommandeBase(BaseModel):
@@ -388,7 +393,7 @@ def get_materiel_fourni_list(materiel: Dict[str, bool], autre: str = None) -> Li
         result.append(f"Autre: {autre}")
     return result
 
-def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None) -> bytes:
+def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None, force_no_signature: bool = False) -> bytes:
     """Generate PDF for client (without password, with conditions)"""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, 
@@ -521,9 +526,32 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     elements.append(Paragraph(CONDITIONS_REPARATION["contestations"], condition_text))
     
     elements.append(Spacer(1, 15))
-    elements.append(Paragraph("Signature du client (lu et approuvé):", normal_style))
-    elements.append(Spacer(1, 20))
-    
+    # Bloc signature
+    if reparation.get("signature_b64"):
+        signataire = reparation.get("nom_signataire") or f"{client.get('prenom','')} {client.get('nom','')}".strip()
+        date_sig = reparation.get("date_signature", "")[:10]
+        elements.append(Paragraph("<b>Lu et approuvé, bon pour accord</b>", normal_style))
+        elements.append(Paragraph(f"Nom : {signataire}    —    Date : {date_sig}", normal_style))
+        elements.append(Spacer(1, 4))
+        try:
+            raw = reparation["signature_b64"]
+            if raw.startswith("data:"):
+                raw = raw.split(",", 1)[1]
+            sig_bytes = base64.b64decode(raw)
+            sig_img = Image(io.BytesIO(sig_bytes), width=5 * cm, height=2 * cm)
+            elements.append(sig_img)
+        except Exception as exc:
+            logger.error(f"Failed to embed signature: {exc}")
+            elements.append(Paragraph("<i>[Signature non affichable]</i>", small_style))
+    elif reparation.get("envoye_sans_signature") or force_no_signature:
+        elements.append(Paragraph(
+            "<font color='#DC2626'><b>Document envoyé sans signature du client</b></font>",
+            normal_style,
+        ))
+    else:
+        elements.append(Paragraph("Signature du client (lu et approuvé) :", normal_style))
+        elements.append(Spacer(1, 20))
+
     doc.build(elements)
     buffer.seek(0)
     return buffer.getvalue()
@@ -971,6 +999,80 @@ async def delete_reparation(reparation_id: str):
         raise HTTPException(status_code=404, detail="Réparation non trouvée")
     return {"message": "Réparation supprimée"}
 
+# ===================== SIGNATURE CLIENT =====================
+
+class SignatureInput(BaseModel):
+    signature_b64: str
+    nom_signataire: Optional[str] = None
+    accepte_conditions: bool = True
+
+@api_router.get("/reparations/{reparation_id}/public")
+async def get_reparation_public(reparation_id: str):
+    """Fiche simplifiée pour le mode signature client (pas de données sensibles)"""
+    rep = await db.reparations.find_one({"id": reparation_id}, {"_id": 0})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+    client = await db.clients.find_one({"id": rep["client_id"]}, {"_id": 0})
+    materiel_list = get_materiel_fourni_list(rep.get("materiel_fourni", {}), rep.get("autre_materiel"))
+    return {
+        "id": rep["id"],
+        "numero": rep.get("numero"),
+        "date_creation": rep.get("date_creation", "")[:10],
+        "client_nom": client.get("nom") if client else "",
+        "client_prenom": client.get("prenom") if client else "",
+        "client_telephone": client.get("telephone") if client else "",
+        "materiel": materiel_list,
+        "description_panne": rep.get("description_panne", ""),
+        "urgence": rep.get("urgence", False),
+        "signature_b64": rep.get("signature_b64"),
+        "date_signature": rep.get("date_signature"),
+        "nom_signataire": rep.get("nom_signataire"),
+        "conditions": CONDITIONS_REPARATION,
+        "company": COMPANY_INFO,
+    }
+
+@api_router.post("/reparations/{reparation_id}/signature")
+async def save_signature(reparation_id: str, payload: SignatureInput):
+    """Enregistre la signature du client (écrase la précédente si présente)"""
+    if not payload.accepte_conditions:
+        raise HTTPException(status_code=400, detail="Les conditions de réparation doivent être acceptées")
+    if not payload.signature_b64 or len(payload.signature_b64) < 100:
+        raise HTTPException(status_code=400, detail="Signature invalide")
+
+    rep = await db.reparations.find_one({"id": reparation_id})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.reparations.update_one(
+        {"id": reparation_id},
+        {"$set": {
+            "signature_b64": payload.signature_b64,
+            "nom_signataire": payload.nom_signataire,
+            "date_signature": now,
+            "envoye_sans_signature": False,
+            "date_modification": now,
+        }}
+    )
+    return {"ok": True, "date_signature": now}
+
+@api_router.delete("/reparations/{reparation_id}/signature")
+async def delete_signature(reparation_id: str):
+    """Supprime la signature (permet une re-signature)"""
+    rep = await db.reparations.find_one({"id": reparation_id})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+    await db.reparations.update_one(
+        {"id": reparation_id},
+        {"$set": {
+            "signature_b64": None,
+            "nom_signataire": None,
+            "date_signature": None,
+            "date_modification": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+    return {"ok": True}
+
 # ===================== PUBLIC TRACKING =====================
 
 @api_router.get("/suivi/{tracking_id}")
@@ -1073,22 +1175,40 @@ async def get_qrcode(reparation_id: str):
 # ===================== EMAIL =====================
 
 @api_router.post("/reparations/{reparation_id}/send-email")
-async def send_repair_email(reparation_id: str):
-    """Send repair email to client with PDF attachment"""
-    if not resend.api_key:
-        raise HTTPException(status_code=500, detail="Service email non configuré")
-    
+async def send_repair_email(reparation_id: str, force: bool = Query(False, description="Forcer l'envoi sans signature")):
+    """Send repair email to client with PDF attachment. Blocks if no signature unless force=true."""
+    # First, check reparation and signature status BEFORE checking Resend config
     rep = await db.reparations.find_one({"id": reparation_id}, {"_id": 0})
     if not rep:
         raise HTTPException(status_code=404, detail="Réparation non trouvée")
-    
+
     client = await db.clients.find_one({"id": rep["client_id"]}, {"_id": 0})
     if not client:
         raise HTTPException(status_code=404, detail="Client non trouvé")
-    
+
     if not client.get("email"):
         raise HTTPException(status_code=400, detail="Le client n'a pas d'adresse email")
-    
+
+    # Check signature BEFORE checking Resend API key (per requirements)
+    has_signature = bool(rep.get("signature_b64"))
+    if not has_signature and not force:
+        raise HTTPException(
+            status_code=409,
+            detail="Impossible d'envoyer : le client n'a pas signé. Utilisez force=true pour envoyer sans signature.",
+        )
+
+    # Marquer l'envoi forcé sans signature (do this BEFORE checking Resend)
+    if not has_signature and force:
+        await db.reparations.update_one(
+            {"id": reparation_id},
+            {"$set": {"envoye_sans_signature": True, "date_modification": datetime.now(timezone.utc).isoformat()}},
+        )
+        rep["envoye_sans_signature"] = True
+
+    # Now check Resend configuration
+    if not resend.api_key:
+        raise HTTPException(status_code=500, detail="Service email non configuré")
+
     frontend_url = os.environ.get('FRONTEND_URL', 'https://fiche-repair.preview.emergentagent.com')
     tracking_url = f"{frontend_url}/suivi/{rep.get('tracking_id', '')}"
     

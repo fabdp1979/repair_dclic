@@ -23,6 +23,7 @@ import CommandesPage from "./pages/CommandesPage";
 import EncaissementPage from "./pages/EncaissementPage";
 import CaissePage from "./pages/CaissePage";
 import SuiviPage from "./pages/SuiviPage";
+import SignaturePage from "./pages/SignaturePage";
 
 const navigation = [
   { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
@@ -137,8 +138,8 @@ function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   
-  // Don't show layout for public tracking page
-  if (location.pathname.startsWith('/suivi/')) {
+  // Don't show layout for public tracking or signature page
+  if (location.pathname.startsWith('/suivi/') || location.pathname.startsWith('/signer/')) {
     return children;
   }
 
@@ -189,6 +190,7 @@ function App() {
           <Route path="/encaissement" element={<EncaissementPage />} />
           <Route path="/caisse" element={<CaissePage />} />
           <Route path="/suivi/:trackingId" element={<SuiviPage />} />
+          <Route path="/signer/:reparationId" element={<SignaturePage />} />
         </Routes>
       </Layout>
     </BrowserRouter>

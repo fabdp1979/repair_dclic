@@ -60,7 +60,13 @@ export const getInternalPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/inte
 export const getQrCodeUrl = (id) => `${API_BASE}/reparations/${id}/qrcode`;
 
 // Email
-export const sendRepairEmail = (id) => api.post(`/reparations/${id}/send-email`);
+export const sendRepairEmail = (id, force = false) =>
+  api.post(`/reparations/${id}/send-email`, null, { params: { force } });
+
+// Signature client
+export const getReparationPublic = (id) => api.get(`/reparations/${id}/public`);
+export const saveSignature = (id, data) => api.post(`/reparations/${id}/signature`, data);
+export const deleteSignature = (id) => api.delete(`/reparations/${id}/signature`);
 
 // Public Tracking
 export const getPublicTracking = (trackingId) => api.get(`/suivi/${trackingId}`);
