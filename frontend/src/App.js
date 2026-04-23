@@ -7,7 +7,7 @@ import PcMode from "./modes/PcMode";
 import IpadMode from "./modes/IpadMode";
 
 // Mode detection
-import { useDeviceMode, isForcedIpadPath } from "./hooks/useDeviceMode";
+import { isForcedIpadPath } from "./hooks/useDeviceMode";
 
 // Pages PC
 import Dashboard from "./pages/Dashboard";
@@ -25,10 +25,10 @@ import HomeIpadPage from "./pages-ipad/HomeIpadPage";
 
 function LayoutSelector({ children }) {
   const location = useLocation();
-  const { mode } = useDeviceMode();
 
-  // iPad FORCÉ sur les routes publiques
-  if (isForcedIpadPath(location.pathname) || mode === "ipad") {
+  // Les routes publiques FORCENT le mode iPad. Tout le reste = PC (admin technicien).
+  // L'override localStorage 'ipad' est ignoré sur les routes admin, exactement comme demandé.
+  if (isForcedIpadPath(location.pathname)) {
     return <IpadMode>{children}</IpadMode>;
   }
   return <PcMode>{children}</PcMode>;

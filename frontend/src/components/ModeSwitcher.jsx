@@ -18,11 +18,12 @@ export default function ModeSwitcher() {
   const apply = (next) => {
     setOpen(false);
     if (next === "ipad") {
-      setMode("ipad");
-      // bascule visuellement en redirigeant vers l'accueil iPad pour démo
+      // On n'écrit PAS localStorage ici : le mode PC doit rester par défaut
+      // sur les routes admin. Le switch iPad = simple navigation vers l'aperçu.
       window.location.href = "/ipad";
     } else {
-      setMode("pc");
+      // Nettoie un éventuel override hérité
+      setMode(null);
     }
   };
 
