@@ -81,6 +81,7 @@ export default function FullscreenGuard({ children, logoSlot }) {
     if (pin !== KIOSK_PIN) {
       toast.error("Code PIN incorrect");
       setPin("");
+      // On garde le dialog ouvert pour permettre une nouvelle tentative
       return;
     }
     setPinDialogOpen(false);
@@ -143,10 +144,15 @@ export default function FullscreenGuard({ children, logoSlot }) {
           />
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePinSubmit} data-testid="kiosk-pin-submit">
+            <button
+              type="button"
+              onClick={handlePinSubmit}
+              className="inline-flex items-center justify-center bg-slate-900 hover:bg-slate-700 text-white h-10 px-4 py-2 text-sm font-medium rounded-md"
+              data-testid="kiosk-pin-submit"
+            >
               <X className="w-4 h-4 mr-2" />
               Quitter le kiosque
-            </AlertDialogAction>
+            </button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
