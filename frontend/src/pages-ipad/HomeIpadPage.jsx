@@ -45,11 +45,21 @@ export default function HomeIpadPage() {
   }, [poll]);
 
   // Heartbeat pour indicateur "iPad en ligne" côté PC
+  // 5s + relance au retour de visibilité/focus/online (anti throttle iOS Safari)
   useEffect(() => {
     const send = () => { ipadHeartbeat().catch(() => {}); };
     send();
     const t = setInterval(send, HEARTBEAT_MS);
-    return () => clearInterval(t);
+    const onVisible = () => { if (!document.hidden) send(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("online", send);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", send);
+    };
   }, []);
 
   // Horloge
