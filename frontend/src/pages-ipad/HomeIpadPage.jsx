@@ -7,8 +7,8 @@ import { useDeviceMode } from "../hooks/useDeviceMode";
 import { ipadCurrent, ipadHeartbeat } from "../lib/api";
 
 const POLL_INTERVAL_MS = 3000; // écran d'accueil : 3s
-const HEARTBEAT_MS = 8000;
-const OFFLINE_AFTER_MS = 15000;
+const HEARTBEAT_MS = 5000;
+const OFFLINE_AFTER_MS = 30000;
 
 export default function HomeIpadPage() {
   const navigate = useNavigate();

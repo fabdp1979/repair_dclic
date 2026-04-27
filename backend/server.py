@@ -1332,7 +1332,7 @@ def _ipad_is_online(state: dict) -> bool:
     try:
         last = datetime.fromisoformat(hb.replace("Z", "+00:00")) if isinstance(hb, str) else hb
         now = datetime.now(timezone.utc)
-        return (now - last).total_seconds() < 15
+        return (now - last).total_seconds() < 30
     except Exception:
         return False
 

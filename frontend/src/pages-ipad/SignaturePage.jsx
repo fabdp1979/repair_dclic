@@ -52,11 +52,22 @@ export default function SignaturePage() {
   }, [reparationId]);
 
   // Heartbeat pendant qu'on est sur /signer (indicateur "iPad en ligne" PC)
+  // 5s d'intervalle + relance immédiate sur visibilitychange/focus pour contrer
+  // le throttling iOS Safari
   useEffect(() => {
     const send = () => { ipadHeartbeat().catch(() => {}); };
     send();
-    const t = setInterval(send, 8000);
-    return () => clearInterval(t);
+    const t = setInterval(send, 5000);
+    const onVisible = () => { if (!document.hidden) send(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("online", send);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", send);
+    };
   }, []);
 
   // Polling lent : seulement en mode kiosque (terminal iPad)
