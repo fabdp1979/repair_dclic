@@ -6,22 +6,27 @@ import {
 import ModeSwitcher from "../components/ModeSwitcher";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
 import { useAuth } from "../contexts/AuthContext";
+import { detectAuto } from "../hooks/useDeviceMode";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "../components/ui/dropdown-menu";
 import { Button } from "../components/ui/button";
 
-const navigation = [
-  { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-  { name: "Clients", href: "/clients", icon: Users },
-  { name: "Réparations", href: "/reparations", icon: Wrench },
-  { name: "Commandes client", href: "/commandes", icon: ShoppingCart },
-  { name: "Encaissement", href: "/encaissement", icon: CreditCard },
-  { name: "Journal de caisse", href: "/caisse", icon: BookOpen },
+const ALL_NAV = [
+  { name: "Tableau de bord", href: "/", icon: LayoutDashboard, ipad: false },
+  { name: "Clients", href: "/clients", icon: Users, ipad: false },
+  { name: "Réparations", href: "/reparations", icon: Wrench, ipad: true },
+  { name: "Commandes client", href: "/commandes", icon: ShoppingCart, ipad: false },
+  { name: "Encaissement", href: "/encaissement", icon: CreditCard, ipad: false },
+  { name: "Journal de caisse", href: "/caisse", icon: BookOpen, ipad: false },
 ];
 
-function Sidebar({ isOpen, setIsOpen }) {
+function getNavigation(isIpad) {
+  return isIpad ? ALL_NAV.filter((n) => n.ipad) : ALL_NAV;
+}
+
+function Sidebar({ isOpen, setIsOpen, navigation }) {
   const location = useLocation();
   return (
     <>
@@ -79,7 +84,7 @@ function Sidebar({ isOpen, setIsOpen }) {
   );
 }
 
-function MobileNav() {
+function MobileNav({ navigation }) {
   const location = useLocation();
   const mobileNav = navigation.slice(0, 5);
   return (
@@ -108,10 +113,12 @@ export default function PcMode({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pwdOpen, setPwdOpen] = useState(false);
   const { user, logout } = useAuth();
+  const isIpad = detectAuto() === "ipad";
+  const navigation = getNavigation(isIpad);
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} navigation={navigation} />
 
       <main className="flex-1 pb-20 md:pb-0">
         {/* Header */}
@@ -171,7 +178,7 @@ export default function PcMode({ children }) {
         <div className="p-4 md:p-6 lg:p-8">{children}</div>
       </main>
 
-      <MobileNav />
+      <MobileNav navigation={navigation} />
       <ChangePasswordDialog open={pwdOpen} onOpenChange={setPwdOpen} />
     </div>
   );

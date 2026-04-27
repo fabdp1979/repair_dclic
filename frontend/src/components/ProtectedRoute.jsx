@@ -1,10 +1,14 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { detectAuto } from "../hooks/useDeviceMode";
 
-export default function ProtectedRoute({ children }) {
+const IPAD_ALLOWED_ROUTES = ["/reparations"];
+
+export default function ProtectedRoute({ children, ipadAllowed = false }) {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
+  const isIpad = detectAuto() === "ipad";
 
   if (loading) {
     return (
@@ -17,5 +21,13 @@ export default function ProtectedRoute({ children }) {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
+
+  // Sur iPad, restreindre aux routes autorisées (sécurité supplémentaire si Guided Access oublié)
+  if (isIpad && !ipadAllowed) {
+    const path = location.pathname;
+    const allowed = IPAD_ALLOWED_ROUTES.some((p) => path === p || path.startsWith(p + "/"));
+    if (!allowed) return <Navigate to="/reparations" replace />;
+  }
+
   return children;
 }
