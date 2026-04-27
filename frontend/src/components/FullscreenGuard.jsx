@@ -54,6 +54,50 @@ export default function FullscreenGuard({ children, logoSlot }) {
     };
   }, [enabled]);
 
+  // ---- Block iOS Safari pull-to-refresh + Android overscroll
+  useEffect(() => {
+    if (!enabled) return;
+    document.documentElement.classList.add("kiosk-locked");
+    document.body.classList.add("kiosk-locked");
+
+    let startY = 0;
+    const onTouchStart = (e) => {
+      if (e.touches && e.touches.length > 0) startY = e.touches[0].clientY;
+    };
+    const onTouchMove = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const y = e.touches[0].clientY;
+      const dy = y - startY;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+      // Si on est tout en haut et que l'utilisateur tire vers le bas
+      // (pull-to-refresh) → on bloque
+      if (scrollTop <= 0 && dy > 0) {
+        // Sauf si l'élément touché est dans une zone scrollable interne (cherche un overflow-y auto)
+        let target = e.target;
+        let allow = false;
+        while (target && target !== document.body) {
+          const overflowY = window.getComputedStyle(target).overflowY;
+          if ((overflowY === "auto" || overflowY === "scroll") && target.scrollHeight > target.clientHeight && target.scrollTop > 0) {
+            allow = true;
+            break;
+          }
+          target = target.parentElement;
+        }
+        if (!allow) e.preventDefault();
+      }
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      document.documentElement.classList.remove("kiosk-locked");
+      document.body.classList.remove("kiosk-locked");
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [enabled]);
+
   const enterFullscreen = async () => {
     try {
       const el = document.documentElement;
