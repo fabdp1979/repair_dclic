@@ -9,7 +9,12 @@ import IpadMode from "./modes/IpadMode";
 // Mode detection
 import { isForcedIpadPath } from "./hooks/useDeviceMode";
 
-// Pages PC
+// Auth
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
+
+// Pages PC (admin — protected)
 import Dashboard from "./pages/Dashboard";
 import ClientsPage from "./pages/ClientsPage";
 import ClientDetailPage from "./pages/ClientDetailPage";
@@ -18,17 +23,17 @@ import CommandesPage from "./pages/CommandesPage";
 import EncaissementPage from "./pages/EncaissementPage";
 import CaissePage from "./pages/CaissePage";
 
-// Pages iPad / publiques
+// Pages iPad / publiques (no auth)
 import SuiviPage from "./pages/SuiviPage";
 import SignaturePage from "./pages-ipad/SignaturePage";
 import HomeIpadPage from "./pages-ipad/HomeIpadPage";
+import PrivacyPolicyPage from "./pages-ipad/PrivacyPolicyPage";
 
 function LayoutSelector({ children }) {
   const location = useLocation();
-
-  // Les routes publiques FORCENT le mode iPad. Tout le reste = PC (admin technicien).
-  // L'override localStorage 'ipad' est ignoré sur les routes admin, exactement comme demandé.
-  if (isForcedIpadPath(location.pathname)) {
+  // Le login a son propre layout (pas de PC sidebar non plus)
+  if (location.pathname === "/login") return children;
+  if (isForcedIpadPath(location.pathname) || location.pathname === "/confidentialite") {
     return <IpadMode>{children}</IpadMode>;
   }
   return <PcMode>{children}</PcMode>;
@@ -37,24 +42,30 @@ function LayoutSelector({ children }) {
 function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" richColors />
-      <LayoutSelector>
-        <Routes>
-          {/* PC */}
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/clients" element={<ClientsPage />} />
-          <Route path="/clients/:id" element={<ClientDetailPage />} />
-          <Route path="/reparations" element={<ReparationsPage />} />
-          <Route path="/commandes" element={<CommandesPage />} />
-          <Route path="/encaissement" element={<EncaissementPage />} />
-          <Route path="/caisse" element={<CaissePage />} />
+      <AuthProvider>
+        <Toaster position="top-right" richColors />
+        <LayoutSelector>
+          <Routes>
+            {/* Auth */}
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* iPad / public */}
-          <Route path="/suivi/:trackingId" element={<SuiviPage />} />
-          <Route path="/signer/:reparationId" element={<SignaturePage />} />
-          <Route path="/ipad" element={<HomeIpadPage />} />
-        </Routes>
-      </LayoutSelector>
+            {/* PC admin (protégé) */}
+            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
+            <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
+            <Route path="/reparations" element={<ProtectedRoute><ReparationsPage /></ProtectedRoute>} />
+            <Route path="/commandes" element={<ProtectedRoute><CommandesPage /></ProtectedRoute>} />
+            <Route path="/encaissement" element={<ProtectedRoute><EncaissementPage /></ProtectedRoute>} />
+            <Route path="/caisse" element={<ProtectedRoute><CaissePage /></ProtectedRoute>} />
+
+            {/* iPad / public */}
+            <Route path="/suivi/:trackingId" element={<SuiviPage />} />
+            <Route path="/signer/:reparationId" element={<SignaturePage />} />
+            <Route path="/ipad" element={<HomeIpadPage />} />
+            <Route path="/confidentialite" element={<PrivacyPolicyPage />} />
+          </Routes>
+        </LayoutSelector>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

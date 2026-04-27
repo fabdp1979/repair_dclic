@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X,
+  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X, LogOut, User,
 } from "lucide-react";
 import ModeSwitcher from "../components/ModeSwitcher";
+import { useAuth } from "../contexts/AuthContext";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "../components/ui/dropdown-menu";
+import { Button } from "../components/ui/button";
 
 const navigation = [
   { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
@@ -99,6 +105,7 @@ function MobileNav() {
 
 export default function PcMode({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
@@ -122,6 +129,32 @@ export default function PcMode({ children }) {
           </div>
           <div className="flex items-center gap-2">
             <ModeSwitcher />
+            {user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2" data-testid="user-menu-btn">
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline text-xs text-slate-600 max-w-[180px] truncate">
+                      {user.email}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuLabel className="text-xs text-slate-500">
+                    {user.name || user.email}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    data-testid="logout-btn"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Se déconnecter
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </header>
 

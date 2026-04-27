@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Query, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Query, Response, Request, Depends
 from fastapi.responses import FileResponse, HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -9,9 +9,11 @@ from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any, Tuple
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import resend
+import bcrypt
+import jwt as pyjwt
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -52,16 +54,83 @@ COMPANY_INFO = {
     "email": "contact@d-clic-informatique.fr"
 }
 
-# Conditions de réparation
+# Conditions de réparation (mises à jour avec RGPD)
 CONDITIONS_REPARATION = {
-    "prise_en_charge": "Dclic Informatique est responsable du matériel fourni en cas de destruction, partielle ou totale, ou de vol. La société DClic Informatique ne pourra pas être tenue responsable en cas de pertes de données. Il est recommandé au client d'effectuer une sauvegarde des données avant sa réparation. En cas de réinstallation du système, le client fournira un numéro de licence Windows valide et officiel. Dans le cas contraire, une version d'évaluation de 30 jours sera installée, dans la mesure du possible.",
-    "delais": "Les délais de réparation sont fonctions de la charge de travail en cours, ainsi que de la disponibilité des éventuelles pièces détachées. Aucune indemnité ne pourra être demandée en cas d'un éventuel dépassement de délai de réparation. Le client a la possibilité, en choisissant l'option \"Réparation Urgente\" à 25€, d'être prioritaire sur les autres réparations en cours.",
-    "devis": "Tout devis de réparation sera offert dans le cas où il est accepté par le client. En cas de refus, il sera facturé 15€ TTC.",
-    "tarifs": "Le forfait réparation en atelier est de 60€TTC. En cas de panne matérielle constatée par DClic Informatique, le client sera contacté et informé du montant des réparations. Il choisira alors s'il accepte de procéder à la réparation ou non.",
-    "reglement": "La réparation est réglée au comptant, lorsque le client vient en boutique récupérer son (ses) appareil(s).",
-    "garantie": "La réparation est garantie 3 mois concernant la main d'oeuvre, et 1 an concernant les pièces remplacées. Certaines pièces peuvent avoir une garantie différente, le client en sera alors informé sur sa facture. La garantie ne s'applique qu'en cas de même panne et non automatiquement de mêmes symptômes.",
-    "abandon": "Tout appareil non réclamé dans un délai de 6 mois et 1 jour sera considéré comme abandonné par son propriétaire. Au-delà de ce délai, DClic Informatique se réserve le droit d'user du matériel comme bon lui semble. DClic Informatique peut proposer au client une reprise du matériel pour un montant valable uniquement avant le départ de l'appareil des locaux de DClic Informatique. Dans ce cas, le réglement ne pourra être fait que par chèque bancaire, sur justificatif de l'identité et du domicile du client.",
-    "contestations": "En confiant son (ses) appareil(s) à DClic Informatique, le client lit, comprend, et approuve par sa signature ces conditions. Toute contestation devra se faire auprès du Tribunal de Commerce de Brive-La-Gaillarde, seul compétent."
+    "prise_en_charge": (
+        "Dclic Informatique est responsable du matériel confié en cas de détérioration "
+        "(partielle ou totale) ou de vol survenu pendant sa prise en charge. "
+        "Le matériel est pris en charge en l'état. Dclic Informatique ne pourra être tenu "
+        "responsable d'une aggravation d'une panne préexistante. "
+        "La société ne pourra être tenue responsable en cas de perte de données. Le client "
+        "reconnaît être seul responsable de la sauvegarde de ses données et accepte le risque "
+        "de perte totale ou partielle lors de l'intervention. "
+        "En cas de réinstallation du système, le client devra fournir une licence Windows "
+        "valide et officielle. À défaut, une version d'évaluation limitée à 30 jours pourra "
+        "être installée, dans la mesure du possible."
+    ),
+    "delais": (
+        "Les délais de réparation dépendent de la charge de travail et de la disponibilité "
+        "des pièces détachées. Aucune indemnité ne pourra être demandée en cas de dépassement "
+        "des délais annoncés. Le client peut, s'il le souhaite, souscrire à l'option "
+        "Réparation urgente (25 €), permettant une prise en charge prioritaire."
+    ),
+    "devis": (
+        "Tout devis est gratuit s'il est accepté. En cas de refus, un montant forfaitaire "
+        "de 15 € TTC sera facturé."
+    ),
+    "tarifs": (
+        "Le forfait de réparation en atelier est fixé à 63 € TTC. "
+        "En cas de panne matérielle nécessitant le remplacement de pièces, le client sera "
+        "contacté et informé du coût des réparations. Aucune intervention ne sera réalisée "
+        "sans son accord préalable."
+    ),
+    "reglement": (
+        "Le règlement s'effectue au moment de la restitution du matériel, directement en boutique."
+    ),
+    "garantie": (
+        "Les réparations sont garanties :\n"
+        "• 3 mois pour la main-d'œuvre\n"
+        "• 1 an pour les pièces remplacées (sauf indication contraire sur la facture)\n"
+        "La garantie s'applique uniquement à la même panne et ne couvre pas automatiquement "
+        "des symptômes similaires. La garantie ne couvre pas les dommages résultant d'une "
+        "mauvaise utilisation, d'un choc, d'une surtension ou d'une intervention extérieure."
+    ),
+    "abandon": (
+        "Tout appareil non récupéré dans un délai de 6 mois et 1 jour sera considéré comme "
+        "abandonné. Le client sera contacté au préalable. En l'absence de réponse, Dclic "
+        "Informatique se réserve le droit de disposer librement du matériel. "
+        "Une proposition de reprise du matériel peut être faite au client avant la sortie "
+        "de l'appareil des locaux. Le règlement s'effectuera alors exclusivement par chèque, "
+        "sur présentation d'un justificatif d'identité et de domicile."
+    ),
+    "contestations": (
+        "En confiant son matériel à Dclic Informatique, le client reconnaît avoir pris "
+        "connaissance et accepté les présentes conditions. En cas de litige, seul le "
+        "Tribunal de Commerce de Brive-La-Gaillarde sera compétent."
+    ),
+    "donnees_personnelles": (
+        "Les informations collectées sont nécessaires à la gestion des réparations et à la "
+        "relation client. Elles sont utilisées uniquement dans ce cadre et ne sont en aucun "
+        "cas transmises à des tiers sans consentement. Conformément à la réglementation en "
+        "vigueur, le client dispose d'un droit d'accès, de rectification et de suppression "
+        "de ses données, qu'il peut exercer sur simple demande auprès de Dclic Informatique. "
+        "Consultez notre politique de confidentialité pour plus d'informations."
+    ),
+}
+
+# Politique de confidentialité (RGPD)
+PRIVACY_POLICY = {
+    "title": "Politique de confidentialité",
+    "sections": [
+        {"title": "1. Responsable du traitement", "content": "Les données personnelles collectées sont traitées par :\n\nDclic Informatique\n30 avenue du Général De Gaulle\n19140 UZERCHE"},
+        {"title": "2. Données collectées", "content": "Dans le cadre de l'activité de réparation informatique, les données suivantes peuvent être collectées :\n\n• Nom et prénom\n• Numéro de téléphone\n• Adresse email\n• Informations relatives au matériel confié\n• Signature du client"},
+        {"title": "3. Finalité du traitement", "content": "Ces données sont collectées uniquement pour :\n\n• la gestion des réparations\n• la communication avec le client\n• l'édition de documents (fiches, factures, etc.)\n\nElles ne sont en aucun cas utilisées à des fins commerciales sans consentement."},
+        {"title": "4. Conservation des données", "content": "Les données sont conservées pendant la durée nécessaire à la gestion des réparations et au suivi client, puis archivées."},
+        {"title": "5. Partage des données", "content": "Les données ne sont pas transmises à des tiers, sauf obligation légale ou nécessité technique liée à la réparation."},
+        {"title": "6. Sécurité", "content": "Dclic Informatique met en œuvre des mesures techniques et organisationnelles pour protéger les données contre tout accès non autorisé, perte ou divulgation."},
+        {"title": "7. Droits du client", "content": "Conformément à la réglementation en vigueur, le client dispose des droits suivants :\n\n• droit d'accès\n• droit de rectification\n• droit de suppression\n\nToute demande peut être adressée directement à Dclic Informatique."},
+        {"title": "8. Acceptation", "content": "En confiant son matériel, le client reconnaît avoir pris connaissance de la présente politique de confidentialité."},
+    ],
 }
 
 # Matériel fourni options
@@ -1107,6 +1176,115 @@ async def get_public_tracking(tracking_id: str):
         "urgence": rep.get("urgence", False)
     }
 
+# ===================== AUTH (JWT + bcrypt) =====================
+
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_HOURS = 24
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
+
+def _jwt_secret() -> str:
+    secret = os.environ.get("JWT_SECRET")
+    if not secret:
+        raise RuntimeError("JWT_SECRET non configuré")
+    return secret
+
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+def _create_access_token(user_id: str, email: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS),
+        "type": "access",
+    }
+    return pyjwt.encode(payload, _jwt_secret(), algorithm=JWT_ALGORITHM)
+
+class LoginInput(BaseModel):
+    email: str
+    password: str
+
+async def get_current_user(request: Request) -> dict:
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else None
+    if not token:
+        raise HTTPException(status_code=401, detail="Non authentifié")
+    try:
+        payload = pyjwt.decode(token, _jwt_secret(), algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Token invalide")
+        user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="Utilisateur introuvable")
+        return user
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Session expirée")
+    except pyjwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+@api_router.post("/auth/login")
+async def login(payload: LoginInput, request: Request):
+    email = payload.email.strip().lower()
+    ip = request.client.host if request.client else "unknown"
+    identifier = f"{ip}:{email}"
+
+    # Brute-force lockout check
+    attempt = await db.login_attempts.find_one({"identifier": identifier})
+    if attempt and attempt.get("locked_until"):
+        try:
+            locked_until = datetime.fromisoformat(attempt["locked_until"])
+            if locked_until > datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Trop de tentatives. Réessayez dans {LOCKOUT_MINUTES} minutes.",
+                )
+        except (ValueError, TypeError):
+            pass
+
+    user = await db.users.find_one({"email": email})
+    if not user or not _verify_password(payload.password, user.get("password_hash", "")):
+        # Increment failed attempts
+        new_count = (attempt.get("count", 0) if attempt else 0) + 1
+        update = {"count": new_count, "last_attempt": datetime.now(timezone.utc).isoformat()}
+        if new_count >= MAX_LOGIN_ATTEMPTS:
+            update["locked_until"] = (datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)).isoformat()
+        await db.login_attempts.update_one(
+            {"identifier": identifier}, {"$set": {"identifier": identifier, **update}}, upsert=True,
+        )
+        raise HTTPException(status_code=401, detail="Identifiant ou mot de passe incorrect")
+
+    # Success — reset attempts
+    await db.login_attempts.delete_one({"identifier": identifier})
+
+    token = _create_access_token(user["id"], user["email"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")},
+    }
+
+@api_router.get("/auth/me")
+async def me(user: dict = Depends(get_current_user)):
+    return {"id": user["id"], "email": user["email"], "name": user.get("name", "")}
+
+@api_router.post("/auth/logout")
+async def logout(_: dict = Depends(get_current_user)):
+    # Avec JWT stateless, le logout côté backend = no-op (le client supprime son token)
+    return {"ok": True}
+
+# ===================== PRIVACY POLICY =====================
+
+@api_router.get("/privacy-policy")
+async def get_privacy_policy():
+    return PRIVACY_POLICY
+
 # ===================== IPAD TERMINAL STATE =====================
 
 class IpadAssignInput(BaseModel):
@@ -2141,6 +2319,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def seed_admin_user():
+    """Idempotent : crée le compte admin s'il n'existe pas encore."""
+    admin_email = (os.environ.get("ADMIN_EMAIL") or "").strip().lower()
+    admin_password = os.environ.get("ADMIN_PASSWORD") or ""
+    if not admin_email or not admin_password:
+        logger.warning("ADMIN_EMAIL / ADMIN_PASSWORD non configurés — pas de seed")
+        return
+    existing = await db.users.find_one({"email": admin_email})
+    if existing:
+        logger.info(f"Admin already seeded: {admin_email}")
+        return
+    user_doc = {
+        "id": str(uuid.uuid4()),
+        "email": admin_email,
+        "name": "Administrateur DCLIC",
+        "password_hash": _hash_password(admin_password),
+        "role": "admin",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.insert_one(user_doc)
+    logger.info(f"Admin seeded: {admin_email}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

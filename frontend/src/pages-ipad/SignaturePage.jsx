@@ -29,6 +29,7 @@ const CONDITION_LABELS = {
   garantie: "Garantie",
   abandon: "Abandon",
   contestations: "Contestations",
+  donnees_personnelles: "Données personnelles (RGPD)",
 };
 
 export default function SignaturePage() {
@@ -392,6 +393,21 @@ export default function SignaturePage() {
                 )}
               </Button>
             </div>
+
+            <p className="text-base text-slate-500 text-center pt-1 leading-relaxed">
+              En signant, vous acceptez les conditions de réparation et la{" "}
+              <a
+                href="/confidentialite"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#84CC16] hover:underline font-semibold"
+                data-testid="privacy-link"
+              >
+                politique de confidentialité
+              </a>
+              .
+            </p>
+
             {(!accepted || !hasStrokes) && (
               <p className="text-base text-slate-500 text-center">
                 {!accepted
