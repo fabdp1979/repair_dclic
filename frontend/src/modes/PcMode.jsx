@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X, LogOut, User,
+  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X, LogOut, User, KeyRound,
 } from "lucide-react";
 import ModeSwitcher from "../components/ModeSwitcher";
+import ChangePasswordDialog from "../components/ChangePasswordDialog";
 import { useAuth } from "../contexts/AuthContext";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -105,6 +106,7 @@ function MobileNav() {
 
 export default function PcMode({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
   const { user, logout } = useAuth();
 
   return (
@@ -145,6 +147,14 @@ export default function PcMode({ children }) {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    onClick={() => setPwdOpen(true)}
+                    data-testid="change-password-btn"
+                  >
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Changer mon mot de passe
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
                     onClick={logout}
                     className="text-red-600 focus:text-red-600 focus:bg-red-50"
                     data-testid="logout-btn"
@@ -162,6 +172,7 @@ export default function PcMode({ children }) {
       </main>
 
       <MobileNav />
+      <ChangePasswordDialog open={pwdOpen} onOpenChange={setPwdOpen} />
     </div>
   );
 }

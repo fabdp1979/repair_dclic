@@ -1279,6 +1279,25 @@ async def logout(_: dict = Depends(get_current_user)):
     # Avec JWT stateless, le logout côté backend = no-op (le client supprime son token)
     return {"ok": True}
 
+class ChangePasswordInput(BaseModel):
+    current_password: str
+    new_password: str
+
+@api_router.post("/auth/change-password")
+async def change_password(payload: ChangePasswordInput, user: dict = Depends(get_current_user)):
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit contenir au moins 8 caractères")
+    full = await db.users.find_one({"id": user["id"]})
+    if not full or not _verify_password(payload.current_password, full.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Mot de passe actuel incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit être différent de l'actuel")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": _hash_password(payload.new_password), "password_updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "message": "Mot de passe mis à jour"}
+
 # ===================== PRIVACY POLICY =====================
 
 @api_router.get("/privacy-policy")

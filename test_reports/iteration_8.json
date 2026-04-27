@@ -1,0 +1,63 @@
+{
+  "summary": "Iteration 8 testing completed for DCLIC Informatique - Change Password feature + iPad sync verification + Auto-refresh. Backend: 9/9 tests passed (100%). Frontend: All new features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "ChangePasswordDialog",
+        "issues": ["Minor: Console warning 'Missing Description or aria-describedby' for DialogContent - accessibility improvement recommended"]
+      }
+    ]
+  },
+  "passed_tests": [
+    "BACKEND POST /api/auth/change-password: without auth token returns 401",
+    "BACKEND POST /api/auth/change-password: wrong current password returns 401 'Mot de passe actuel incorrect'",
+    "BACKEND POST /api/auth/change-password: new password < 8 chars returns 400",
+    "BACKEND POST /api/auth/change-password: same as current returns 400 'doit être différent'",
+    "BACKEND POST /api/auth/change-password: valid change returns {ok:true}, password updated in DB, old password no longer works, new password works",
+    "BACKEND GET /api/ipad/current: returns assignation correctly (regression)",
+    "BACKEND PUT /api/ipad/heartbeat: works correctly (regression)",
+    "BACKEND GET /api/ipad/status: returns online info (regression)",
+    "BACKEND POST /api/ipad/assign: sets state correctly, GET /api/ipad/current returns assigned reparation",
+    "FRONTEND PC header user dropdown: shows 'Changer mon mot de passe' menu item with KeyRound icon",
+    "FRONTEND clicking 'Changer mon mot de passe': opens dialog with 3 fields (current_password, new_password, confirm_password) with eye toggle for current and new",
+    "FRONTEND change password validation: new != confirm shows toast 'Les mots de passe ne correspondent pas'",
+    "FRONTEND change password validation: new < 8 chars shows toast 'Le nouveau mot de passe doit contenir au moins 8 caractères'",
+    "FRONTEND change password success: toast 'Mot de passe mis à jour avec succès', dialog closes, user can re-login with new password",
+    "FRONTEND E2E iPad sync: PC assigns reparation via /api/ipad/assign, iPad page (/ipad) polls and navigates to /signer/{id}?fullscreen=1 within 5 seconds - USER REPORTED ISSUE VERIFIED WORKING",
+    "FRONTEND PC reparations auto-refresh: page reloads silently every 15s without flicker or modal interruption",
+    "FRONTEND /signer/:id: 'Données personnelles' section visible in conditions + privacy link 'politique de confidentialité' -> /confidentialite",
+    "FRONTEND /confidentialite: public page with 8 RGPD sections, 'Retour' link to /ipad",
+    "FRONTEND regression: login -> dashboard works, sidebar visible, all admin routes accessible"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_change_password.py",
+    "/app/test_reports/pytest/pytest_results_iteration8.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor accessibility: ChangePasswordDialog should add DialogDescription for screen readers"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_change_password.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_email": "contact@d-clic-informatique.fr",
+    "admin_password": "dclic2026!",
+    "ipad_pin": "4827"
+  },
+  "seed_data_creation": "None - used existing test data",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 8 tested new features: 1) POST /api/auth/change-password endpoint with bcrypt verify/hash - all validation cases pass. 2) ChangePasswordDialog in PC header user menu - 3 fields with eye toggle, validation toasts, success flow. 3) iPad sync E2E verified working - iPad polls /api/ipad/current every 3s and navigates to /signer/{id}?fullscreen=1 when assigned. 4) PC reparations auto-refresh every 15s (silent, no flicker). 5) RGPD sections and privacy link on signature page verified. Password reverted to 'dclic2026!' after testing.",
+  "rca_of_the_issue": "User reported iPad sync issue - VERIFIED WORKING. The iPad page polls /api/ipad/current every 3 seconds. When PC calls POST /api/ipad/assign with a reparation_id, the iPad detects the change and navigates to /signer/{id}?fullscreen=1 within 3-5 seconds. The feature is functioning correctly."
+}

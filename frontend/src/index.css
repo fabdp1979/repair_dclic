@@ -188,8 +188,14 @@ input:-webkit-autofill:active {
 
 /* Harmonise les rings/focus sur le vert pomme exact */
 :root {
-    --ring: 82 78% 45%;
-    --primary: 82 78% 45%;
+    --ring: 82 76% 44%;
+    --primary: 82 76% 44%;
+}
+/* Anti yellow autofill borders + remove focus-within ring on auth card */
+.no-yellow-border:focus-within,
+[role="dialog"]:focus-within {
+    outline: none !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
 }
 
 /* =================== iPad MODE =================== */

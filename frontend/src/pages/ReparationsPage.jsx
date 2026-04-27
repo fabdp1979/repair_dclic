@@ -101,6 +101,18 @@ export default function ReparationsPage() {
     loadData();
   }, []);
 
+  // Auto-refresh silencieux toutes les 15s pour récupérer signatures + statuts changés depuis l'iPad
+  useEffect(() => {
+    const t = setInterval(() => {
+      // Ne pas recharger si une modale d'édition est ouverte (évite de perdre la saisie)
+      if (!dialogOpen && !clientDialogOpen && !forceEmailDialog.open) {
+        loadData();
+      }
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, clientDialogOpen, forceEmailDialog.open]);
+
   // Polling iPad status (online indicator)
   useEffect(() => {
     const check = async () => {

@@ -76,6 +76,10 @@ export const ipadRelease = () => api.post(`/ipad/release`);
 export const ipadHeartbeat = () => api.put(`/ipad/heartbeat`);
 export const ipadStatus = () => api.get(`/ipad/status`);
 
+// Auth
+export const changePassword = (current_password, new_password) =>
+  api.post(`/auth/change-password`, { current_password, new_password });
+
 // Public Tracking
 export const getPublicTracking = (trackingId) => api.get(`/suivi/${trackingId}`);
 
