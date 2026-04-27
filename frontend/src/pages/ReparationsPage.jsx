@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { 
   Search, Plus, Edit, Trash2, FileText, Send, CheckCircle,
   Wrench, Download, Clock, AlertTriangle, Link as LinkIcon, QrCode,
-  UserPlus, Lock, Tablet, Wifi, WifiOff
+  UserPlus, PenLine
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -25,9 +25,9 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getReparations, createReparation, updateReparation, deleteReparation,
   getClients, createClient, getClientPdfUrl, getInternalPdfUrl, 
-  sendRepairEmail, exportReparationsExcelUrl, downloadFile,
-  ipadAssign, ipadStatus
+  sendRepairEmail, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
+import { detectAuto } from "../hooks/useDeviceMode";
 import { toast } from "sonner";
 import Fuse from "fuse.js";
 
@@ -94,38 +94,10 @@ export default function ReparationsPage() {
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(null);
   const [forceEmailDialog, setForceEmailDialog] = useState({ open: false, reparation: null });
-  const [ipadOnline, setIpadOnline] = useState(false);
-  const [assigning, setAssigning] = useState(null);
+  const isIpadDevice = detectAuto() === "ipad";
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  // Auto-refresh silencieux toutes les 15s pour récupérer signatures + statuts changés depuis l'iPad
-  useEffect(() => {
-    const t = setInterval(() => {
-      // Ne pas recharger si une modale d'édition est ouverte (évite de perdre la saisie)
-      if (!dialogOpen && !clientDialogOpen && !forceEmailDialog.open) {
-        loadData();
-      }
-    }, 15000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, clientDialogOpen, forceEmailDialog.open]);
-
-  // Polling iPad status (online indicator)
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const { data } = await ipadStatus();
-        setIpadOnline(!!data?.online);
-      } catch {
-        setIpadOnline(false);
-      }
-    };
-    check();
-    const t = setInterval(check, 5000);
-    return () => clearInterval(t);
   }, []);
 
   // Auto-open new repair dialog when navigating with ?newFor=clientId
@@ -314,19 +286,6 @@ export default function ReparationsPage() {
     window.open(url, "_blank", "noopener");
   };
 
-  const sendToIpad = async (reparation) => {
-    setAssigning(reparation.id);
-    try {
-      await ipadAssign(reparation.id, true);
-      toast.success("Fiche envoyée sur l'iPad. Le client va pouvoir signer.");
-    } catch (e) {
-      const msg = e.response?.data?.detail || "Erreur lors de l'envoi sur l'iPad";
-      toast.error(typeof msg === "string" ? msg : "Erreur");
-    } finally {
-      setAssigning(null);
-    }
-  };
-
   const copySignatureLink = async (reparation) => {
     const url = `${window.location.origin}/signer/${reparation.id}`;
     try {
@@ -390,25 +349,6 @@ export default function ReparationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Indicateur iPad en ligne */}
-          <span
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${
-              ipadOnline
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-slate-50 text-slate-500 border-slate-200"
-            }`}
-            title={ipadOnline ? "L'iPad comptoir est connecté" : "iPad comptoir hors ligne"}
-            data-testid="ipad-status-indicator"
-          >
-            <Tablet className="w-3.5 h-3.5" />
-            iPad {ipadOnline ? "en ligne" : "hors ligne"}
-            <span
-              className={`w-2 h-2 rounded-full ${
-                ipadOnline ? "bg-green-500 animate-pulse" : "bg-slate-400"
-              }`}
-            />
-          </span>
-
           <Button variant="outline" onClick={async () => {
             try {
               await downloadFile(exportReparationsExcelUrl(), `reparations_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -549,44 +489,19 @@ export default function ReparationsPage() {
                         </Button>
                       )}
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-blue-700 border-blue-200 hover:bg-blue-50 gap-2"
-                        onClick={() => sendToIpad(reparation)}
-                        disabled={assigning === reparation.id}
-                        title={ipadOnline ? "Envoyer cette fiche sur l'iPad du comptoir" : "iPad hors ligne — vérifiez la tablette"}
-                        data-testid={`send-ipad-btn-${reparation.id}`}
-                      >
-                        <Tablet className="w-4 h-4" />
-                        {assigning === reparation.id ? "..." : "Envoyer sur l'iPad"}
-                        {ipadOnline
-                          ? <Wifi className="w-3 h-3 text-green-500" />
-                          : <WifiOff className="w-3 h-3 text-slate-400" />}
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-[#84CC16] border-[#84CC16]/30 hover:bg-[#84CC16]/10"
-                        onClick={() => openSignaturePage(reparation)}
-                        title="Ouvrir la page de signature dans un nouvel onglet"
-                        data-testid={`sign-btn-${reparation.id}`}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Ouvrir ici
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-slate-700 border-slate-300 hover:bg-slate-100"
-                        onClick={() => openSignatureKiosque(reparation)}
-                        title="Mode kiosque plein écran dans un nouvel onglet"
-                        data-testid={`sign-kiosque-btn-${reparation.id}`}
-                      >
-                        <Lock className="w-4 h-4" />
-                      </Button>
+                      {isIpadDevice && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[#84CC16] border-[#84CC16]/30 hover:bg-[#84CC16]/10"
+                          onClick={() => openSignatureKiosque(reparation)}
+                          title="Ouvrir la fiche en mode signature plein écran"
+                          data-testid={`signature-client-btn-${reparation.id}`}
+                        >
+                          <PenLine className="w-4 h-4 mr-1" />
+                          Signature client
+                        </Button>
+                      )}
 
                       <Button
                         variant="ghost"

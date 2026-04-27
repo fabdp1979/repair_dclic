@@ -198,6 +198,15 @@ input:-webkit-autofill:active {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
 }
 
+/* Neutralise les "ring" jaunes du browser autofill sur les cartes contenant des formulaires */
+form:focus-within {
+    outline: none;
+}
+.rounded-xl:focus-within,
+.rounded-lg:focus-within {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+}
+
 /* =================== iPad MODE =================== */
 /* Active via <div class="ipad-mode"> — typographie + espacement XL */
 .ipad-mode {
