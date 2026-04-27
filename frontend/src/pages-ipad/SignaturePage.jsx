@@ -70,26 +70,9 @@ export default function SignaturePage() {
     };
   }, []);
 
-  // Polling lent : seulement en mode kiosque (terminal iPad)
-  useEffect(() => {
-    if (success) return;
-    const isKiosk = new URLSearchParams(window.location.search).get("fullscreen") === "1";
-    if (!isKiosk) return;
-    const check = async () => {
-      try {
-        const { data: st } = await ipadCurrent();
-        const assigned = st?.reparation_id;
-        if (!assigned) {
-          navigate("/ipad");
-        } else if (assigned !== reparationId) {
-          const fs = st.kiosk ? "?fullscreen=1" : "";
-          navigate(`/signer/${assigned}${fs}`);
-        }
-      } catch {}
-    };
-    const t = setInterval(check, SIGNER_POLL_MS);
-    return () => clearInterval(t);
-  }, [reparationId, navigate, success]);
+  // Polling lent désactivé : depuis qu'on n'utilise plus l'assignation iPad,
+  // /signer ne doit JAMAIS rediriger automatiquement — le client a tout son temps pour signer.
+  // (Auparavant, ce hook refoulait le client vers /ipad au bout de 10s)
 
   // Retour auto après signature (5s) — uniquement en mode kiosque/terminal
   useEffect(() => {
