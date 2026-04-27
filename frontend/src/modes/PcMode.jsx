@@ -14,16 +14,18 @@ import {
 import { Button } from "../components/ui/button";
 
 const ALL_NAV = [
-  { name: "Tableau de bord", href: "/", icon: LayoutDashboard, ipad: false },
-  { name: "Clients", href: "/clients", icon: Users, ipad: false },
-  { name: "Réparations", href: "/reparations", icon: Wrench, ipad: true },
-  { name: "Commandes client", href: "/commandes", icon: ShoppingCart, ipad: false },
-  { name: "Encaissement", href: "/encaissement", icon: CreditCard, ipad: false },
-  { name: "Journal de caisse", href: "/caisse", icon: BookOpen, ipad: false },
+  { name: "Tableau de bord", href: "/", icon: LayoutDashboard, ipad: false, ipadName: null },
+  { name: "Clients", href: "/clients", icon: Users, ipad: false, ipadName: null },
+  { name: "Réparations", href: "/reparations", icon: Wrench, ipad: true, ipadName: "Signature client" },
+  { name: "Commandes client", href: "/commandes", icon: ShoppingCart, ipad: false, ipadName: null },
+  { name: "Encaissement", href: "/encaissement", icon: CreditCard, ipad: false, ipadName: null },
+  { name: "Journal de caisse", href: "/caisse", icon: BookOpen, ipad: false, ipadName: null },
 ];
 
 function getNavigation(isIpad) {
-  return isIpad ? ALL_NAV.filter((n) => n.ipad) : ALL_NAV;
+  return isIpad
+    ? ALL_NAV.filter((n) => n.ipad).map((n) => ({ ...n, name: n.ipadName || n.name }))
+    : ALL_NAV;
 }
 
 function Sidebar({ isOpen, setIsOpen, navigation }) {

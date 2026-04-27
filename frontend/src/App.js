@@ -18,7 +18,7 @@ import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import ClientsPage from "./pages/ClientsPage";
 import ClientDetailPage from "./pages/ClientDetailPage";
-import ReparationsPage from "./pages/ReparationsPage";
+import ReparationsRouter from "./pages/ReparationsRouter";
 import CommandesPage from "./pages/CommandesPage";
 import EncaissementPage from "./pages/EncaissementPage";
 import CaissePage from "./pages/CaissePage";
@@ -53,7 +53,7 @@ function App() {
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
             <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
-            <Route path="/reparations" element={<ProtectedRoute><ReparationsPage /></ProtectedRoute>} />
+            <Route path="/reparations" element={<ProtectedRoute><ReparationsRouter /></ProtectedRoute>} />
             <Route path="/commandes" element={<ProtectedRoute><CommandesPage /></ProtectedRoute>} />
             <Route path="/encaissement" element={<ProtectedRoute><EncaissementPage /></ProtectedRoute>} />
             <Route path="/caisse" element={<ProtectedRoute><CaissePage /></ProtectedRoute>} />
