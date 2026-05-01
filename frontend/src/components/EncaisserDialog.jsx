@@ -78,7 +78,7 @@ export default function EncaisserDialog({ open, onOpenChange, reparation, onSucc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg" data-testid="encaisser-dialog">
+      <DialogContent className="max-w-lg bg-white" data-testid="encaisser-dialog">
         <DialogHeader>
           <DialogTitle className="font-outfit flex items-center gap-2">
             <Euro className="w-5 h-5 text-[#84CC16]" />
@@ -127,7 +127,8 @@ export default function EncaisserDialog({ open, onOpenChange, reparation, onSucc
                     placeholder="Montant"
                     value={p.montant}
                     onChange={(e) => updatePaiement(idx, "montant", e.target.value)}
-                    className="flex-1"
+                    className="flex-1 bg-white"
+                    autoComplete="off"
                     data-testid={`encaisser-montant-${idx}`}
                   />
                   <span className="text-slate-500">€</span>
