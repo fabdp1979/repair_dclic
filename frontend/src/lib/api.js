@@ -80,6 +80,13 @@ export const deleteAdBanner = () => {
   });
 };
 
+// Encaissement d'une réparation (lien automatique avec le module Encaissement)
+export const encaisserReparation = (id, payload) =>
+  api.post(`/reparations/${id}/encaisser`, payload);
+export const annulerEncaissementReparation = (id) =>
+  api.delete(`/reparations/${id}/encaisser`);
+
+
 // Email
 export const sendRepairEmail = (id, force = false) =>
   api.post(`/reparations/${id}/send-email`, null, { params: { force } });

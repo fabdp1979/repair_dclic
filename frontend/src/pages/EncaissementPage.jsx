@@ -25,6 +25,7 @@ const TYPES_RECETTE = [
   { value: "devis_15", label: "Devis 15€", ttc: 15, ht: 12.50 },
   { value: "ventes", label: "Ventes", ttc: null, ht: null },
   { value: "autre", label: "Autre", ttc: null, ht: null },
+  { value: "mixte", label: "Mixte (plusieurs lignes)", ttc: null, ht: null },
 ];
 
 const MODES_PAIEMENT = [
@@ -38,9 +39,8 @@ const getTypeLabel = (value) => TYPES_RECETTE.find((t) => t.value === value)?.la
 const getModeLabel = (value) => MODES_PAIEMENT.find((m) => m.value === value)?.label || value;
 
 const emptyEntry = {
-  type_recette: "forfait_63",
-  montant_ttc: "63",
-  montant_ht: "52.50",
+  // Lignes : 1 par défaut, plusieurs possibles
+  lignes: [{ type_recette: "forfait_63", montant_ttc: "63", description: "" }],
   paiements: [{ mode: "especes", montant: "" }],
   client_id: "",
   reference: "",
@@ -103,33 +103,37 @@ export default function EncaissementPage() {
     });
   });
 
-  const handleTypeChange = (value) => {
+  // === Lignes (multi-produits) ===
+  const addLigne = () =>
+    setFormData((prev) => ({
+      ...prev,
+      lignes: [...prev.lignes, { type_recette: "ventes", montant_ttc: "", description: "" }],
+    }));
+
+  const removeLigne = (idx) =>
+    setFormData((prev) => ({
+      ...prev,
+      lignes: prev.lignes.filter((_, i) => i !== idx),
+    }));
+
+  const updateLigne = (idx, patch) =>
+    setFormData((prev) => ({
+      ...prev,
+      lignes: prev.lignes.map((l, i) => (i === idx ? { ...l, ...patch } : l)),
+    }));
+
+  const handleLigneTypeChange = (idx, value) => {
     const type = TYPES_RECETTE.find((t) => t.value === value);
-    if (type && type.ttc != null) {
-      setFormData((prev) => ({
-        ...prev,
-        type_recette: value,
-        montant_ttc: String(type.ttc),
-        montant_ht: String(type.ht),
-        paiements: prev.paiements.length
-          ? [{ ...prev.paiements[0], montant: String(type.ttc) }, ...prev.paiements.slice(1)]
-          : [{ mode: "especes", montant: String(type.ttc) }],
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        type_recette: value,
-        montant_ttc: "",
-        montant_ht: "",
-      }));
-    }
+    const patch = { type_recette: value };
+    if (type && type.ttc != null) patch.montant_ttc = String(type.ttc);
+    updateLigne(idx, patch);
   };
 
-  const handleTTCChange = (value) => {
-    const ttc = parseFloat(value) || 0;
-    const ht = ttc ? (ttc / 1.2).toFixed(2) : "";
-    setFormData((prev) => ({ ...prev, montant_ttc: value, montant_ht: ht }));
-  };
+  const totalLignesTTC = formData.lignes.reduce(
+    (s, l) => s + (parseFloat(l.montant_ttc) || 0),
+    0
+  );
+  const totalLignesHT = Math.round((totalLignesTTC / 1.2) * 100) / 100;
 
   const handlePaiementChange = (idx, field, value) => {
     setFormData((prev) => ({
@@ -153,10 +157,14 @@ export default function EncaissementPage() {
   };
 
   const autoFillSinglePaiement = () => {
-    if (formData.paiements.length === 1 && formData.montant_ttc && !formData.paiements[0].montant) {
+    if (
+      formData.paiements.length === 1 &&
+      totalLignesTTC > 0 &&
+      !formData.paiements[0].montant
+    ) {
       setFormData((prev) => ({
         ...prev,
-        paiements: [{ ...prev.paiements[0], montant: prev.montant_ttc }],
+        paiements: [{ ...prev.paiements[0], montant: totalLignesTTC.toFixed(2) }],
       }));
     }
   };
@@ -164,11 +172,19 @@ export default function EncaissementPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const ttc = parseFloat(formData.montant_ttc);
-    if (!ttc || ttc <= 0) {
-      toast.error("Veuillez saisir un montant TTC valide");
+    const validLignes = formData.lignes
+      .map((l) => ({
+        type_recette: l.type_recette,
+        montant_ttc: parseFloat(l.montant_ttc) || 0,
+        description: (l.description || "").trim() || null,
+      }))
+      .filter((l) => l.montant_ttc > 0);
+
+    if (validLignes.length === 0) {
+      toast.error("Veuillez saisir au moins une ligne avec un montant");
       return;
     }
+    const ttc = Math.round(validLignes.reduce((s, l) => s + l.montant_ttc, 0) * 100) / 100;
 
     const validPaiements = formData.paiements
       .filter((p) => p.mode && parseFloat(p.montant) > 0)
@@ -179,21 +195,26 @@ export default function EncaissementPage() {
       return;
     }
 
-    const totalPaiements = validPaiements.reduce((s, p) => s + p.montant, 0);
+    const totalPaiements = Math.round(validPaiements.reduce((s, p) => s + p.montant, 0) * 100) / 100;
     if (Math.abs(totalPaiements - ttc) > 0.01) {
       toast.error(
-        `La somme des paiements (${totalPaiements.toFixed(2)}€) ne correspond pas au montant TTC (${ttc.toFixed(2)}€)`
+        `La somme des paiements (${totalPaiements.toFixed(2)}€) ne correspond pas au total TTC (${ttc.toFixed(2)}€)`
       );
       return;
     }
 
+    // type_recette global : "mixte" si plusieurs catégories, sinon celle de la seule ligne
+    const categories = new Set(validLignes.map((l) => l.type_recette));
+    const globalType = categories.size > 1 ? "mixte" : validLignes[0].type_recette;
+
     setSaving(true);
     try {
       await createEncaissement({
-        type_recette: formData.type_recette,
+        type_recette: globalType,
         montant_ttc: ttc,
-        montant_ht: formData.montant_ht ? parseFloat(formData.montant_ht) : null,
+        montant_ht: Math.round((ttc / 1.2) * 100) / 100,
         paiements: validPaiements,
+        lignes: validLignes.length > 1 ? validLignes : null, // Pas besoin de stocker si 1 seule
         client_id: formData.client_id || null,
         reference: formData.reference || null,
         remarque: formData.remarque || null,
@@ -346,9 +367,23 @@ export default function EncaissementPage() {
                       <tr key={entry.id} data-testid={`encaissement-row-${entry.id}`}>
                         <td className="font-mono text-xs">{formatTime(entry.date)}</td>
                         <td>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                            {getTypeLabel(entry.type_recette)}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 w-fit">
+                              {getTypeLabel(entry.type_recette)}
+                            </span>
+                            {/* Détail des lignes pour les encaissements multi-produits */}
+                            {Array.isArray(entry.lignes) && entry.lignes.length > 1 && (
+                              <div className="text-xs text-slate-600 mt-1 space-y-0.5" data-testid={`encaissement-lignes-${entry.id}`}>
+                                {entry.lignes.map((l, i) => (
+                                  <div key={i} className="pl-2 border-l-2 border-slate-300">
+                                    • {getTypeLabel(l.type_recette)}
+                                    {l.description ? ` — ${l.description}` : ""}
+                                    <span className="font-mono ml-1">({Number(l.montant_ttc).toFixed(2)}€)</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="font-mono font-semibold text-green-600">
                           +{getEntryTTC(entry).toFixed(2)} €
@@ -404,49 +439,84 @@ export default function EncaissementPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
-              <div>
-                <Label>Type de recette</Label>
-                <Select value={formData.type_recette} onValueChange={handleTypeChange}>
-                  <SelectTrigger data-testid="type-recette-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPES_RECETTE.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="montant_ttc">Montant TTC (€) *</Label>
-                  <Input
-                    id="montant_ttc"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.montant_ttc}
-                    onChange={(e) => handleTTCChange(e.target.value)}
-                    onBlur={autoFillSinglePaiement}
-                    required
-                    data-testid="montant-ttc-input"
-                  />
+              {/* Lignes — multi-produits */}
+              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm font-semibold">Lignes (produits / prestations) *</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addLigne}
+                    data-testid="add-ligne-btn"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Ajouter une ligne
+                  </Button>
                 </div>
-                <div>
-                  <Label htmlFor="montant_ht">Montant HT (€)</Label>
-                  <Input
-                    id="montant_ht"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.montant_ht}
-                    onChange={(e) => setFormData({ ...formData, montant_ht: e.target.value })}
-                    placeholder="Auto (TTC / 1.2)"
-                    data-testid="montant-ht-input"
-                  />
+                <p className="text-xs text-slate-500 mb-3">
+                  Ex : Forfait 63 € <strong>+</strong> Vente 20 € sur un même encaissement CB.
+                </p>
+                <div className="space-y-2">
+                  {formData.lignes.map((ligne, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded p-2 space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1">
+                          <Select
+                            value={ligne.type_recette}
+                            onValueChange={(v) => handleLigneTypeChange(idx, v)}
+                          >
+                            <SelectTrigger data-testid={`ligne-type-${idx}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TYPES_RECETTE.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="TTC €"
+                          value={ligne.montant_ttc}
+                          onChange={(e) => updateLigne(idx, { montant_ttc: e.target.value })}
+                          onBlur={autoFillSinglePaiement}
+                          className="w-28"
+                          data-testid={`ligne-montant-${idx}`}
+                        />
+                        {formData.lignes.length > 1 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-500"
+                            onClick={() => removeLigne(idx)}
+                            data-testid={`ligne-remove-${idx}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <Input
+                        placeholder="Description (optionnel, ex : souris sans fil, cartouche imprimante…)"
+                        value={ligne.description || ""}
+                        onChange={(e) => updateLigne(idx, { description: e.target.value })}
+                        className="text-sm"
+                        data-testid={`ligne-description-${idx}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center mt-3 pt-2 border-t border-slate-200 text-sm">
+                  <span className="text-slate-500">
+                    Total HT : <span className="font-mono">{totalLignesHT.toFixed(2)} €</span>
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    Total TTC : <span className="font-mono text-[#84CC16]" data-testid="total-ttc-display">{totalLignesTTC.toFixed(2)} €</span>
+                  </span>
                 </div>
               </div>
 
@@ -466,7 +536,7 @@ export default function EncaissementPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-slate-500 mb-3">
-                  La somme doit être égale au montant TTC ({Number(formData.montant_ttc || 0).toFixed(2)}€)
+                  La somme doit être égale au total TTC ({totalLignesTTC.toFixed(2)}€)
                 </p>
                 <div className="space-y-2">
                   {formData.paiements.map((p, idx) => (

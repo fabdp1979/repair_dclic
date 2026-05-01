@@ -128,6 +128,14 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - [x] Nouvelle page `/parametres` (icône Settings dans la sidebar) — uploader la bannière (JPG/PNG/WebP ≤ 3 Mo, prévisualisation, dernière MAJ)
 - [x] Bouton **"Compte rendu"** vert dans la liste des réparations (à côté de Client/Interne)
 - [x] Robustesse : image validée via PIL avant intégration reportlab pour éviter les PDFs corrompus
+- [x] Garantie UNE seule page (bandeau dessiné en canvas via `onFirstPage`, bottomMargin dynamique)
+
+## Itération 13 — 01 mai 2026 (Encaissement multi-lignes + bouton Encaisser sur réparation)
+- [x] Backend : nouveau modèle `LigneRecette` + champ `lignes: List[LigneRecette]` optionnel sur `Encaissement`. Validation : somme des lignes = montant_ttc. type_recette auto = "mixte" si plusieurs catégories.
+- [x] Backend : nouveaux endpoints `POST /api/reparations/{id}/encaisser` et `DELETE .../encaisser` — crée/supprime automatiquement l'encaissement lié, met à jour `encaissement_id`, `date_paiement`, `statut_interne="Réglé"` sur la réparation.
+- [x] Backend : champ `reparation_id` ajouté sur Encaissement pour lien inverse.
+- [x] Frontend ReparationsPage : bouton **"Encaisser"** (visible si prix saisi, masqué si déjà réglé) ouvre `EncaisserDialog` (sélection des modes de paiement, validation somme = prix). Badge vert **"Réglé"** affiché après encaissement.
+- [x] Frontend EncaissementPage : formulaire refondu — **lignes multiples** (type + montant + description) avec total TTC/HT auto-calculé. Les lignes détaillées apparaissent dans la liste des encaissements pour les entrées mixtes.
 
 ## Configuration email Resend (P0 Setup restant)
 1. Créer un compte sur https://resend.com

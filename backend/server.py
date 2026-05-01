@@ -283,6 +283,9 @@ class Reparation(BaseModel):
     date_signature: Optional[str] = None
     nom_signataire: Optional[str] = None
     envoye_sans_signature: Optional[bool] = False
+    # Encaissement
+    encaissement_id: Optional[str] = None
+    date_paiement: Optional[str] = None
 
 # Commande Models
 class CommandeBase(BaseModel):
@@ -351,14 +354,23 @@ class PaiementDetail(BaseModel):
     mode: str  # especes, cb, cheque, virement
     montant: float
 
+class LigneRecette(BaseModel):
+    """Ligne unitaire d'un encaissement multi-produits (ex : forfait + vente)."""
+    type_recette: str
+    montant_ttc: float
+    montant_ht: Optional[float] = None
+    description: Optional[str] = None
+
 class EncaissementBase(BaseModel):
     type_recette: str
     montant_ttc: float
     montant_ht: Optional[float] = None
     paiements: List[PaiementDetail]  # Permet plusieurs modes de paiement
+    lignes: Optional[List[LigneRecette]] = None  # Détail multi-produits (facultatif)
     client_id: Optional[str] = None
     reference: Optional[str] = None
     remarque: Optional[str] = None
+    reparation_id: Optional[str] = None  # si créé depuis une fiche réparation
 
 class EncaissementCreate(EncaissementBase):
     pass
@@ -1387,6 +1399,103 @@ async def delete_signature(reparation_id: str):
     )
     return {"ok": True}
 
+
+class EncaisserReparationPayload(BaseModel):
+    paiements: List[PaiementDetail]
+    type_recette: Optional[str] = None  # par défaut déduit du prix
+    remarque: Optional[str] = None
+
+
+@api_router.post("/reparations/{reparation_id}/encaisser")
+async def encaisser_reparation(reparation_id: str, payload: EncaisserReparationPayload):
+    """Marque une réparation comme encaissée et crée automatiquement l'encaissement correspondant."""
+    rep = await db.reparations.find_one({"id": reparation_id})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+    if rep.get("encaissement_id"):
+        raise HTTPException(status_code=400, detail="Cette réparation a déjà été encaissée")
+
+    prix = float(rep.get("prix") or 0)
+    if prix <= 0:
+        raise HTTPException(status_code=400, detail="Veuillez saisir un prix sur la fiche avant d'encaisser")
+
+    # Somme des paiements
+    valid_paiements = [p for p in payload.paiements if p.mode and p.montant and p.montant > 0]
+    if not valid_paiements:
+        raise HTTPException(status_code=400, detail="Au moins un mode de paiement avec montant requis")
+    total_pay = round(sum(p.montant for p in valid_paiements), 2)
+    if abs(total_pay - prix) > 0.01:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La somme des paiements ({total_pay:.2f} €) ne correspond pas au prix ({prix:.2f} €)"
+        )
+
+    # Type de recette : fourni OU déduit du prix
+    type_recette = payload.type_recette
+    if not type_recette:
+        if abs(prix - 63) < 0.01: type_recette = "forfait_63"
+        elif abs(prix - 30) < 0.01: type_recette = "rapide_30"
+        elif abs(prix - 10) < 0.01: type_recette = "express_10"
+        elif abs(prix - 15) < 0.01: type_recette = "devis_15"
+        else: type_recette = "autre"
+
+    now = datetime.now(timezone.utc).isoformat()
+    enc_id = str(uuid.uuid4())
+    ht = round(prix / 1.2, 2)
+    remarque = (payload.remarque or "").strip() or f"Encaissement fiche {rep.get('numero', '')}"
+
+    enc_doc = {
+        "id": enc_id,
+        "type_recette": type_recette,
+        "montant_ttc": prix,
+        "montant_ht": ht,
+        "paiements": [p.model_dump() for p in valid_paiements],
+        "lignes": None,
+        "client_id": rep.get("client_id"),
+        "reparation_id": reparation_id,
+        "reference": rep.get("numero"),
+        "remarque": remarque,
+        "date": now,
+    }
+    await db.encaissements.insert_one(enc_doc)
+    enc_doc.pop("_id", None)
+
+    # Met à jour la fiche réparation
+    await db.reparations.update_one(
+        {"id": reparation_id},
+        {"$set": {
+            "encaissement_id": enc_id,
+            "date_paiement": now,
+            "statut_interne": "Réglé",
+            "statut": "Appareil prêt",
+            "date_modification": now,
+        }}
+    )
+
+    return {"ok": True, "encaissement": enc_doc}
+
+
+@api_router.delete("/reparations/{reparation_id}/encaisser")
+async def annuler_encaissement_reparation(reparation_id: str):
+    """Annule l'encaissement d'une réparation (supprime l'encaissement lié)."""
+    rep = await db.reparations.find_one({"id": reparation_id})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+    enc_id = rep.get("encaissement_id")
+    if not enc_id:
+        raise HTTPException(status_code=400, detail="Cette réparation n'est pas encaissée")
+    await db.encaissements.delete_one({"id": enc_id})
+    await db.reparations.update_one(
+        {"id": reparation_id},
+        {"$set": {
+            "encaissement_id": None,
+            "date_paiement": None,
+            "statut_interne": "En cours",
+            "date_modification": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+    return {"ok": True}
+
 # ===================== PUBLIC TRACKING =====================
 
 @api_router.get("/suivi/{tracking_id}")
@@ -2034,35 +2143,60 @@ async def get_types_recette():
 
 @api_router.post("/encaissements", response_model=Encaissement)
 async def create_encaissement(encaissement: EncaissementCreate):
-    """Create a new receipt entry with multiple payment methods"""
+    """Create a new receipt entry with multiple payment methods and optional multi-line detail."""
     now = datetime.now(timezone.utc).isoformat()
-    
-    # Calculate HT if not provided (assuming 20% TVA)
+
+    # Lignes : si fournies, on calcule / valide les totaux depuis les lignes
+    lignes_dump = None
+    type_recette = encaissement.type_recette
+    montant_ttc = encaissement.montant_ttc
     montant_ht = encaissement.montant_ht
+
+    if encaissement.lignes and len(encaissement.lignes) > 0:
+        lignes_dump = [l.model_dump() for l in encaissement.lignes]
+        sum_ttc = round(sum(l["montant_ttc"] for l in lignes_dump), 2)
+        # La somme des lignes doit correspondre au montant TTC global
+        if abs(sum_ttc - montant_ttc) > 0.01:
+            raise HTTPException(
+                status_code=400,
+                detail=f"La somme des lignes ({sum_ttc:.2f} €) ne correspond pas au total TTC ({montant_ttc:.2f} €)"
+            )
+        # Si plusieurs lignes et type non spécifique → marquer "mixte"
+        if len(lignes_dump) > 1 and type_recette not in (None, "", "mixte"):
+            # Si une seule catégorie utilisée, on garde ; sinon on force "mixte"
+            categories = {l["type_recette"] for l in lignes_dump}
+            if len(categories) > 1:
+                type_recette = "mixte"
+        elif len(lignes_dump) == 1:
+            type_recette = lignes_dump[0]["type_recette"]
+
+    # Calculate HT if not provided (assuming 20% TVA)
     if not montant_ht:
-        montant_ht = round(encaissement.montant_ttc / 1.2, 2)
-    
+        montant_ht = round(montant_ttc / 1.2, 2)
+
     entry_doc = {
         "id": str(uuid.uuid4()),
-        "type_recette": encaissement.type_recette,
-        "montant_ttc": encaissement.montant_ttc,
+        "type_recette": type_recette,
+        "montant_ttc": montant_ttc,
         "montant_ht": montant_ht,
         "paiements": [p.model_dump() for p in encaissement.paiements],
+        "lignes": lignes_dump,
         "client_id": encaissement.client_id,
+        "reparation_id": encaissement.reparation_id,
         "reference": encaissement.reference,
         "remarque": encaissement.remarque,
         "date": now
     }
-    
+
     await db.encaissements.insert_one(entry_doc)
     entry_doc.pop("_id", None)
-    
+
     if encaissement.client_id:
         client = await db.clients.find_one({"id": encaissement.client_id}, {"_id": 0})
         if client:
             entry_doc["client_nom"] = client.get("nom")
             entry_doc["client_prenom"] = client.get("prenom")
-    
+
     return entry_doc
 
 @api_router.get("/encaissements")

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { 
   Search, Plus, Edit, Trash2, FileText, Send, CheckCircle,
   Wrench, Download, Clock, AlertTriangle, Link as LinkIcon, QrCode,
-  UserPlus, PenLine
+  UserPlus, PenLine, Euro
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -30,6 +30,7 @@ import {
 import { formatDateFR } from "../lib/date";
 import { detectAuto } from "../hooks/useDeviceMode";
 import ClientCombobox from "../components/ClientCombobox";
+import EncaisserDialog from "../components/EncaisserDialog";
 import { toast } from "sonner";
 import Fuse from "fuse.js";
 
@@ -94,6 +95,8 @@ export default function ReparationsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [selectedReparation, setSelectedReparation] = useState(null);
+  const [encaisserDialogOpen, setEncaisserDialogOpen] = useState(false);
+  const [repToEncaisser, setRepToEncaisser] = useState(null);
   const [formData, setFormData] = useState(emptyReparation);
   const [clientFormData, setClientFormData] = useState(emptyClient);
   const [saving, setSaving] = useState(false);
@@ -485,6 +488,14 @@ export default function ReparationsPage() {
                         </span>
                       )}
 
+                      {/* Paiement status badge */}
+                      {reparation.encaissement_id ? (
+                        <span className="inline-flex items-center gap-1 bg-[#84CC16]/10 text-[#65A30D] px-2 py-1 rounded-full text-xs font-medium border border-[#84CC16]/30" title={`Encaissé le ${formatDateFR(reparation.date_paiement)}`}>
+                          <Euro className="w-3 h-3" />
+                          Réglé
+                        </span>
+                      ) : null}
+
                       {reparation.statut_interne !== "Terminé" && (
                         <Button
                           variant="outline"
@@ -549,6 +560,22 @@ export default function ReparationsPage() {
                         <FileText className="w-4 h-4 mr-1" />
                         Compte rendu
                       </Button>
+
+                      {/* Encaisser / Déjà réglé */}
+                      {!reparation.encaissement_id ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[#65A30D] border-[#84CC16] bg-[#84CC16]/5 hover:bg-[#84CC16]/15"
+                          onClick={() => { setRepToEncaisser(reparation); setEncaisserDialogOpen(true); }}
+                          disabled={!reparation.prix || reparation.prix <= 0}
+                          title={!reparation.prix ? "Saisir un prix sur la fiche avant d'encaisser" : "Encaisser la réparation"}
+                          data-testid={`encaisser-btn-${reparation.id}`}
+                        >
+                          <Euro className="w-4 h-4 mr-1" />
+                          Encaisser
+                        </Button>
+                      ) : null}
 
                       <Button
                         variant="outline"
@@ -983,6 +1010,14 @@ export default function ReparationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog d'encaissement */}
+      <EncaisserDialog
+        open={encaisserDialogOpen}
+        onOpenChange={setEncaisserDialogOpen}
+        reparation={repToEncaisser}
+        onSuccess={loadData}
+      />
     </div>
   );
 }
