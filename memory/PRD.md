@@ -98,11 +98,22 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - [x] Colonne N (REMARQUES) laissée **vide** dans l'export Caisse (plus d'auto-remplissage)
 - [x] **Bordures** sur toutes les cellules (data rows, TOTAL MOIS, HT/TVA, TOTAUX, légende)
 - [x] **Couleurs distinctes** :
-  - Vert pâle `#ECFCCB` = cellule auto-remplie (A, B, C, D, F, H, I, L, M, O, P, Q)
-  - Bleu pâle `#DBEAFE` = cellule à remplir manuellement (E, G, J, K, N, R, S)
-  - Gris clair `#F1F5F9` = lignes de totaux (TOTAL MOIS, HT, TVA, TOTAUX)
-- [x] **Légende** en haut de l'onglet TOTAUX (cases colorées avec libellés)
-- [x] Format nombre `#,##0.00` sur toutes les colonnes monétaires
+  - Vert pâle `#ECFCCB` = cellule auto-remplie (A, B, C, D, F, I, L, M)
+  - Bleu pâle `#DBEAFE` = cellule à remplir manuellement (E, G, H, J, K, N)
+  - Gris `#E5E7EB` = colonnes Règlement (O, P, Q) — O1="Virements", O2 vide ; P1="N° facture", P2 vide
+  - Beige `#F5E6CA` = colonnes Facturation externe (R, S, T, U) ; T="Nom", U="Facture/échéancier"
+- [x] **Légende** sur l'onglet TOTAUX (4 couleurs)
+- [x] **Format nombre** `#,##0.00` sur toutes les colonnes monétaires
+- [x] **Date colonne A** : format français long `[$-40C]dddd d mmmm` (ex : "jeudi 4 janvier")
+- [x] **I2 (REPORT M-1)** : format monétaire `#,##0.00 €`, aligné à droite, en gras
+
+## Itération 11 — 01 mai 2026 (Protection juridique fiche réparation)
+- [x] Nouveaux champs : `numero_serie` (N° de série) + `etat_depot` (état/observations à la prise en charge)
+- [x] Section dédiée dans le formulaire Réparation (bordure ambre pour attirer l'attention)
+- [x] Affichage sur **PDF client** (section "ÉTAT DU MATÉRIEL À LA PRISE EN CHARGE") — constat annexé à la signature
+- [x] Affichage sur **PDF interne** (N° série dans les infos techniques + bloc état)
+- [x] Affichage sur **page iPad /signer** (bloc ambre en haut, avant les conditions) pour acknowledgment client
+- [x] Endpoint public `/api/reparations/{id}/public` expose numero_serie + etat_depot
 
 ## Configuration email Resend (P0 Setup restant)
 1. Créer un compte sur https://resend.com

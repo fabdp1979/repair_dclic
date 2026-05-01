@@ -198,6 +198,34 @@ export default function SignaturePage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* 0. État à la prise en charge (protection juridique) */}
+        {(data.numero_serie || data.etat_depot) && (
+          <section className="bg-amber-50 rounded-xl border-2 border-amber-300 shadow-sm" data-testid="section-etat-depot">
+            <div className="px-8 py-6 border-b border-amber-200">
+              <h2 className="text-2xl sm:text-3xl font-bold text-amber-900">
+                État du matériel à la prise en charge
+              </h2>
+              <p className="text-base text-amber-800 mt-2">
+                Merci de vérifier ces informations ; elles seront annexées à la fiche signée.
+              </p>
+            </div>
+            <div className="px-8 py-6 space-y-4 text-lg text-slate-800">
+              {data.numero_serie && (
+                <div>
+                  <span className="font-bold">N° de série : </span>
+                  <span className="font-mono">{data.numero_serie}</span>
+                </div>
+              )}
+              {data.etat_depot && (
+                <div>
+                  <div className="font-bold mb-1">Observations :</div>
+                  <p className="whitespace-pre-wrap leading-relaxed">{data.etat_depot}</p>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* 1. Conditions (bloc principal) */}
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm">
           <div className="px-8 py-6 border-b border-slate-200 bg-slate-50 rounded-t-xl">

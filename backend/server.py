@@ -212,6 +212,9 @@ class ReparationBase(BaseModel):
     mot_de_passe: Optional[str] = None
     description_panne: str
     observations_client: Optional[str] = None
+    # Protection juridique : N° série + état du matériel à la prise en charge
+    numero_serie: Optional[str] = None
+    etat_depot: Optional[str] = None
     # Diagnostic et action
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
@@ -231,6 +234,8 @@ class ReparationUpdate(BaseModel):
     mot_de_passe: Optional[str] = None
     description_panne: Optional[str] = None
     observations_client: Optional[str] = None
+    numero_serie: Optional[str] = None
+    etat_depot: Optional[str] = None
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
     prix: Optional[float] = None
@@ -256,6 +261,8 @@ class Reparation(BaseModel):
     mot_de_passe: Optional[str] = None
     description_panne: Optional[str] = None
     observations_client: Optional[str] = None
+    numero_serie: Optional[str] = None
+    etat_depot: Optional[str] = None
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
     prix: Optional[float] = None
@@ -536,7 +543,18 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
         elements.append(Paragraph("<b>MATÉRIEL FOURNI</b>", section_style))
         elements.append(Paragraph(", ".join(materiel_list), normal_style))
         elements.append(Spacer(1, 10))
-    
+
+    # État du matériel à la prise en charge (protection juridique)
+    numero_serie = reparation.get('numero_serie') or ''
+    etat_depot = reparation.get('etat_depot') or ''
+    if numero_serie or etat_depot:
+        elements.append(Paragraph("<b>ÉTAT DU MATÉRIEL À LA PRISE EN CHARGE</b>", section_style))
+        if numero_serie:
+            elements.append(Paragraph(f"<b>N° de série :</b> {numero_serie}", normal_style))
+        if etat_depot:
+            elements.append(Paragraph(f"<b>Observations :</b> {etat_depot}", normal_style))
+        elements.append(Spacer(1, 10))
+
     # Description
     elements.append(Paragraph("<b>DESCRIPTION DE LA PANNE</b>", section_style))
     elements.append(Paragraph(reparation.get('description_panne', '-'), normal_style))
@@ -702,10 +720,11 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
         elements.append(Paragraph(", ".join(materiel_list), normal_style))
         elements.append(Spacer(1, 10))
     
-    # MOT DE PASSE (visible only on internal)
+    # MOT DE PASSE (visible only on internal) + N° série
     elements.append(Paragraph("<b>INFORMATIONS TECHNIQUES</b>", section_style))
     tech_data = [
         ["Mot de passe:", reparation.get('mot_de_passe', '-') or '-'],
+        ["N° de série:", reparation.get('numero_serie', '-') or '-'],
     ]
     tech_table = Table(tech_data, colWidths=[3*cm, 13*cm])
     tech_table.setStyle(TableStyle([
@@ -713,10 +732,16 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor('#E5E7EB')),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#E5E7EB')),
     ]))
     elements.append(tech_table)
     elements.append(Spacer(1, 10))
+
+    # État à la prise en charge
+    if reparation.get('etat_depot'):
+        elements.append(Paragraph("<b>ÉTAT DU MATÉRIEL À LA PRISE EN CHARGE</b>", section_style))
+        elements.append(Paragraph(reparation.get('etat_depot', ''), normal_style))
+        elements.append(Spacer(1, 10))
     
     # Description
     elements.append(Paragraph("<b>DESCRIPTION DE LA PANNE</b>", section_style))
@@ -946,6 +971,8 @@ async def create_reparation(reparation: ReparationCreate):
         "mot_de_passe": reparation.mot_de_passe,
         "description_panne": reparation.description_panne,
         "observations_client": reparation.observations_client,
+        "numero_serie": reparation.numero_serie,
+        "etat_depot": reparation.etat_depot,
         "diagnostic": reparation.diagnostic,
         "action_realisee": reparation.action_realisee,
         "prix": reparation.prix,
@@ -1111,6 +1138,8 @@ async def get_reparation_public(reparation_id: str):
         "client_telephone": client.get("telephone") if client else "",
         "materiel": materiel_list,
         "description_panne": rep.get("description_panne", ""),
+        "numero_serie": rep.get("numero_serie", ""),
+        "etat_depot": rep.get("etat_depot", ""),
         "urgence": rep.get("urgence", False),
         "signature_b64": rep.get("signature_b64"),
         "date_signature": rep.get("date_signature"),

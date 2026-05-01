@@ -70,6 +70,8 @@ const emptyReparation = {
   mot_de_passe: "",
   description_panne: "",
   observations_client: "",
+  numero_serie: "",
+  etat_depot: "",
   diagnostic: "",
   action_realisee: "",
   prix: "",
@@ -165,6 +167,8 @@ export default function ReparationsPage() {
         mot_de_passe: reparation.mot_de_passe || "",
         description_panne: reparation.description_panne || "",
         observations_client: reparation.observations_client || "",
+        numero_serie: reparation.numero_serie || "",
+        etat_depot: reparation.etat_depot || "",
         diagnostic: reparation.diagnostic || "",
         action_realisee: reparation.action_realisee || "",
         prix: reparation.prix?.toString() || "",
@@ -704,10 +708,44 @@ export default function ReparationsPage() {
                 </div>
               </div>
 
+              {/* Bloc État à la prise en charge (protection juridique) */}
+              <div className="border-2 border-amber-200 rounded-lg p-4 bg-amber-50">
+                <h3 className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs">5</span>
+                  État du matériel à la prise en charge
+                </h3>
+                <p className="text-xs text-amber-800 mb-3">
+                  À remplir devant le client : notez le n° de série et tout défaut visible (rayures, fissures, chocs, traces d'usure, accessoires manquants…). Ce constat sera imprimé sur la fiche signée par le client.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="numero_serie">N° de série / S/N</Label>
+                    <Input
+                      id="numero_serie"
+                      data-testid="repair-numero-serie-input"
+                      value={formData.numero_serie}
+                      onChange={(e) => setFormData({...formData, numero_serie: e.target.value})}
+                      placeholder="Ex : SN0123ABCD456"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="etat_depot">Observations / état constaté</Label>
+                    <Textarea
+                      id="etat_depot"
+                      data-testid="repair-etat-depot-input"
+                      value={formData.etat_depot}
+                      onChange={(e) => setFormData({...formData, etat_depot: e.target.value})}
+                      placeholder="Ex : rayure de 2 cm sur l'écran en haut à droite, coque légèrement enfoncée côté gauche, pas de chargeur fourni…"
+                      rows={4}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Bloc Diagnostic & Action */}
               <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                 <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-[#84CC16] text-white rounded-full flex items-center justify-center text-xs">5</span>
+                  <span className="w-6 h-6 bg-[#84CC16] text-white rounded-full flex items-center justify-center text-xs">6</span>
                   Diagnostic & Intervention
                 </h3>
                 <div className="space-y-4">
