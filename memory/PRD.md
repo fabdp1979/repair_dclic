@@ -4,7 +4,7 @@
 Application web de gestion pour vendeur réparateur informatique avec modules complets.
 
 ## Date de mise à jour
-18 Avril 2026 — Corrections majeures issues du feedback utilisateur (msg 138)
+01 Mai 2026 — Validation des 4 dernières modifs UX (ClientCombobox, dates FR, signature PDF 15×6 cm, scroll natif iPad) — 100% OK (iteration_9.json)
 
 ## Coordonnées entreprise
 - **Nom**: DCLIC INFORMATIQUE
@@ -86,6 +86,13 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - Backend : 22/22 tests pytest ✅ (100%)
 - Frontend : Flows principaux validés via testing agent ✅
 - Fichier de test : `/app/backend/tests/test_dclic_api.py`
+
+## Itération 9 — 01 mai 2026 (Validation UX récente)
+- [x] ClientCombobox (Fuse.js) : recherche fuzzy tolère fautes de frappe — intégré dans le formulaire Réparation (remplace l'ancien `<Select>`)
+- [x] Dates au format `jj/mm/aaaa` partout (liste réparations, détail client, suivi public, page iPad)
+- [x] Signature PDF agrandie 15×6 cm (était 5×2 cm) — pas d'erreur ReportLab, PDF +31 KB confirme intégration
+- [x] Scroll natif unique sur `/signer/:id` (suppression du `max-h-[520px] overflow-y-auto` résiduel)
+- Tests : 8/8 backend + 4/4 frontend (100%) — `/app/test_reports/iteration_9.json`
 
 ## Configuration email Resend (P0 Setup restant)
 1. Créer un compte sur https://resend.com
