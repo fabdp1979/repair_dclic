@@ -2152,17 +2152,25 @@ async def export_caisse_excel(
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     # Fonds distinctifs (demande user msg 181) :
-    # - Vert pâle = cellule remplie automatiquement (calculée ou importée depuis Encaissement/Caisse)
-    # - Bleu pâle = cellule à remplir manuellement par le gérant
+    # - Vert pâle  = cellule remplie automatiquement (calculée ou importée depuis Encaissement/Caisse)
+    # - Bleu pâle  = cellule à remplir manuellement par le gérant
+    # - Gris clair = colonnes "Règlement" (O, P, Q)
+    # - Beige      = colonnes "Facturation externe" (R, S, T, U)
     auto_fill = PatternFill(start_color="ECFCCB", end_color="ECFCCB", fill_type="solid")   # vert pâle
     manual_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid") # bleu pâle
-    total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")  # gris clair
+    total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")  # gris très clair
+    gray_fill = PatternFill(start_color="E5E7EB", end_color="E5E7EB", fill_type="solid")   # gris
+    beige_fill = PatternFill(start_color="F5E6CA", end_color="F5E6CA", fill_type="solid")  # beige
+
+    # Header (ligne 1 & 2) : vert DCLIC par défaut, sauf colonnes spécifiques
+    GRAY_COLS = {15, 16, 17}          # O, P, Q
+    BEIGE_COLS = {18, 19, 20, 21}     # R, S, T, U
 
     # Colonnes calculées/auto-remplies (A..U)
     AUTO_COLS = {1, 2, 3, 4, 6, 9, 12, 13}  # A,B,C,D,F,I,L,M
-    # Colonnes à remplir manuellement
-    MANUAL_COLS = {5, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21}
-    # E,G,H,J,K,N,O,P,Q,R,S,T,U
+    # Colonnes à remplir manuellement (hors gray/beige)
+    MANUAL_COLS = {5, 7, 8, 10, 11, 14}
+    # E,G,H,J,K,N
 
     # Colonnes de la feuille (A..U)
     HEADERS_ROW1 = [
@@ -2171,11 +2179,11 @@ async def export_caisse_excel(
         "CLIENTS FACTURéS", "",  # J:K fusionnées
         "TOTAL ", "TOTAL",        # L:M fusionnées
         "REMARQUES",
-        "VIREMENT",               # O (fusionné O1:O2)
-        "N° FACTURE",             # P (fusionné P1:P2)
+        "Virements",              # O1
+        "N° facture",             # P1
         "NOM\nFACTURE",
         "GoCardLess\nmontant net", "Frais de\ncommission",
-        "Nom", "Facture/échéancier",  # T, U (nouveaux — manuels)
+        "Nom", "Facture/échéancier",  # T, U
     ]
     HEADERS_ROW2 = [
         "REPORT M-1", "", "", "", "", "",
@@ -2183,8 +2191,8 @@ async def export_caisse_excel(
         "chèques", "CB",
         "REM CHQ", "REM CB",
         "",
-        "",   # O2 fusionné avec O1 → vide
-        "",   # P2 fusionné avec P1 → vide
+        "",   # O2 vide
+        "",   # P2 vide
         "",
         "", "",
         "", "",  # T2, U2
@@ -2207,22 +2215,28 @@ async def export_caisse_excel(
         # Row 1 headers
         for col_i, h in enumerate(HEADERS_ROW1, start=1):
             c = ws.cell(row=1, column=col_i, value=h)
-            c.fill = header_fill
-            c.font = header_font
+            if col_i in GRAY_COLS:
+                c.fill = gray_fill
+                c.font = Font(bold=True, color="111827", size=10)
+            elif col_i in BEIGE_COLS:
+                c.fill = beige_fill
+                c.font = Font(bold=True, color="111827", size=10)
+            else:
+                c.fill = header_fill
+                c.font = header_font
             c.alignment = center
             c.border = border
         # Fusions ligne 1
         ws.merge_cells("J1:K1")
         ws.merge_cells("L1:M1")
-        # Fusions verticales O1:O2 et P1:P2 (demande user — un seul label sur 2 lignes)
-        ws.merge_cells("O1:O2")
-        ws.merge_cells("P1:P2")
 
-        # Row 2 sub-headers (O2 et P2 sont fusionnés avec O1/P1 → on les saute)
+        # Row 2 sub-headers
         for col_i, h in enumerate(HEADERS_ROW2, start=1):
-            if col_i in (15, 16):  # cellules fusionnées — ne pas écrire
-                continue
             c = ws.cell(row=2, column=col_i, value=h)
+            if col_i in GRAY_COLS:
+                c.fill = gray_fill
+            elif col_i in BEIGE_COLS:
+                c.fill = beige_fill
             c.font = sub_font
             c.alignment = center
             c.border = border
@@ -2276,7 +2290,11 @@ async def export_caisse_excel(
             for col_i in range(1, 22):
                 cell = ws.cell(row=r, column=col_i)
                 cell.border = border
-                if col_i in AUTO_COLS:
+                if col_i in GRAY_COLS:
+                    cell.fill = gray_fill
+                elif col_i in BEIGE_COLS:
+                    cell.fill = beige_fill
+                elif col_i in AUTO_COLS:
                     cell.fill = auto_fill
                 elif col_i in MANUAL_COLS:
                     cell.fill = manual_fill
@@ -2341,16 +2359,18 @@ async def export_caisse_excel(
     # Légende couleurs (demande user msg 181)
     ws.cell(row=1, column=13, value="LÉGENDE :").font = bold_font
     c = ws.cell(row=1, column=14, value="  Auto-rempli  ")
-    c.fill = auto_fill
-    c.border = border
-    c.alignment = center
+    c.fill = auto_fill; c.border = border; c.alignment = center
     c = ws.cell(row=1, column=15, value="  À remplir  ")
-    c.fill = manual_fill
-    c.border = border
-    c.alignment = center
+    c.fill = manual_fill; c.border = border; c.alignment = center
+    c = ws.cell(row=1, column=16, value="  Règlement  ")
+    c.fill = gray_fill; c.border = border; c.alignment = center
+    c = ws.cell(row=1, column=17, value="  Facturation ext.  ")
+    c.fill = beige_fill; c.border = border; c.alignment = center
     ws.column_dimensions["M"].width = 12
     ws.column_dimensions["N"].width = 14
     ws.column_dimensions["O"].width = 14
+    ws.column_dimensions["P"].width = 14
+    ws.column_dimensions["Q"].width = 20
 
     tot_headers = ["MOIS", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL CA",
                    "ENCAISSEM", "DEPENSES", "SOLDE CAISSE", "CHQ+REM", "CB+REM"]
