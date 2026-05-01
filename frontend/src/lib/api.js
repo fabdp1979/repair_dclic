@@ -63,8 +63,22 @@ export const getQrCodeUrl = (id) => `${API_BASE}/reparations/${id}/qrcode`;
 
 // Bannière publicitaire (compte-rendu)
 export const getAdBanner = () => api.get('/settings/ad-banner');
-export const putAdBanner = (image_b64) => api.put('/settings/ad-banner', { image_b64 });
-export const deleteAdBanner = () => api.delete('/settings/ad-banner');
+export const putAdBanner = (image_b64) => {
+  // Attache explicitement le token pour éviter toute condition de course
+  // avec l'initialisation des defaults axios (AuthContext useEffect).
+  const token = localStorage.getItem('dclic_token');
+  return api.put('/settings/ad-banner', { image_b64 }, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+  });
+};
+export const deleteAdBanner = () => {
+  const token = localStorage.getItem('dclic_token');
+  return api.delete('/settings/ad-banner', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+};
 
 // Email
 export const sendRepairEmail = (id, force = false) =>
