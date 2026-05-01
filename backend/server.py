@@ -21,6 +21,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.units import cm, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import ImageReader
 from unidecode import unidecode
 import io
 import base64
@@ -667,34 +668,61 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     return buffer.getvalue()
 
 def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: Optional[bytes] = None) -> bytes:
-    """Generate the client handoff report PDF (delivered when repair is complete).
-    Includes: what was done, price, personalized advice, and an optional ad banner.
+    """Fiche compte rendu — tout sur UNE seule page A4.
+    Le bandeau publicitaire est dessiné directement sur le canvas au bas de la page
+    (via onFirstPage), avec réservation d'un bottomMargin adapté pour que le texte
+    ne déborde jamais dessus.
     """
     buffer = io.BytesIO()
+
+    # Préparation du bandeau (sanitization + dimensions finales) AVANT doc
+    banner_draw = None
+    banner_h = 0
+    if ad_banner_bytes:
+        try:
+            from PIL import Image as PILImage
+            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
+            pil.verify()
+            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
+            if pil.mode in ("P", "RGBA"):
+                pil = pil.convert("RGB")
+            clean = io.BytesIO()
+            pil.save(clean, format="JPEG", quality=85)
+            clean.seek(0)
+            iw, ih = pil.size
+            max_w = 17 * cm
+            max_h = 5 * cm  # bandeau plus compact pour garantir 1 page
+            ratio = min(max_w / iw, max_h / ih)
+            banner_w = iw * ratio
+            banner_h = ih * ratio
+            banner_draw = (clean, banner_w, banner_h)
+        except Exception as exc:
+            logger.error(f"Failed to prepare ad banner: {exc}")
+
+    # Marge basse = hauteur bandeau + petit padding (si pas de bandeau, marge standard)
+    bottom_margin = (banner_h + 0.8 * cm) if banner_h else 1.2 * cm
+
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                             leftMargin=1.5 * cm, rightMargin=1.5 * cm,
-                            topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+                            topMargin=1.2 * cm, bottomMargin=bottom_margin)
 
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('Title', parent=styles['Heading1'],
-                                 fontSize=18, spaceAfter=10,
+                                 fontSize=16, spaceAfter=4,
                                  textColor=colors.HexColor('#84CC16'), alignment=1)
     header_style = ParagraphStyle('Header', parent=styles['Normal'],
-                                  fontSize=9, textColor=colors.HexColor('#64748B'), alignment=1)
+                                  fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1)
     section_style = ParagraphStyle('Section', parent=styles['Heading2'],
-                                   fontSize=12, spaceBefore=14, spaceAfter=6,
+                                   fontSize=10.5, spaceBefore=8, spaceAfter=3,
                                    textColor=colors.HexColor('#0F172A'))
     normal_style = ParagraphStyle('Normal', parent=styles['Normal'],
-                                  fontSize=10, spaceAfter=4, leading=13)
-    price_style = ParagraphStyle('Price', parent=styles['Normal'],
-                                 fontSize=14, fontName='Helvetica-Bold',
-                                 textColor=colors.HexColor('#84CC16'), alignment=2)
+                                  fontSize=9.5, spaceAfter=2, leading=12)
     thank_style = ParagraphStyle('Thank', parent=styles['Normal'],
-                                 fontSize=11, fontName='Helvetica-Oblique',
-                                 textColor=colors.HexColor('#0F172A'), alignment=1, spaceAfter=8)
+                                 fontSize=10, fontName='Helvetica-Oblique',
+                                 textColor=colors.HexColor('#0F172A'), alignment=1, spaceAfter=4)
     tip_style = ParagraphStyle('Tip', parent=styles['Normal'],
-                               fontSize=10, textColor=colors.HexColor('#374151'),
-                               leading=14, spaceAfter=3)
+                               fontSize=9.5, textColor=colors.HexColor('#374151'),
+                               leading=13, spaceAfter=2)
 
     elements = []
 
@@ -704,7 +732,7 @@ def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: O
     elements.append(Paragraph(
         f"Tél : {COMPANY_INFO['phone']} | Email : {COMPANY_INFO['email']}",
         header_style))
-    elements.append(Spacer(1, 12))
+    elements.append(Spacer(1, 6))
 
     elements.append(Paragraph(
         f"<b>COMPTE RENDU DE RÉPARATION — N° {reparation['numero']}</b>",
@@ -713,7 +741,7 @@ def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: O
         f"Date de dépôt : {_fr_date(reparation.get('date_creation'))} — "
         f"Date d'édition : {datetime.now().strftime('%d/%m/%Y')}",
         normal_style))
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 3))
 
     # Remerciement
     elements.append(Paragraph(
@@ -721,7 +749,7 @@ def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: O
         "Merci pour votre confiance. Voici le récapitulatif de l'intervention réalisée.",
         thank_style))
 
-    # Client + matériel
+    # Client + matériel (compact)
     materiel_list = get_materiel_fourni_list(
         reparation.get('materiel_fourni', {}),
         reparation.get('autre_materiel'))
@@ -732,17 +760,16 @@ def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: O
     ]
     if reparation.get('numero_serie'):
         info_data.append(["N° de série :", reparation.get('numero_serie', '-')])
-    info_table = Table(info_data, colWidths=[4 * cm, 13 * cm])
+    info_table = Table(info_data, colWidths=[3.5 * cm, 14.5 * cm])
     info_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTSIZE', (0, 0), (-1, -1), 9.5),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
         ('LINEBELOW', (0, 0), (-1, -1), 0.3, colors.HexColor('#E5E7EB')),
     ]))
     elements.append(info_table)
-    elements.append(Spacer(1, 10))
 
     # Ce qui a été fait
     elements.append(Paragraph("<b>PROBLÈME SIGNALÉ</b>", section_style))
@@ -761,76 +788,67 @@ def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: O
     if prix is not None:
         prix_table = Table(
             [["Montant total de l'intervention :", f"{float(prix):.2f} €"]],
-            colWidths=[12 * cm, 5 * cm],
+            colWidths=[12 * cm, 6 * cm],
         )
         prix_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (0, 0), 11),
+            ('FONTSIZE', (0, 0), (0, 0), 10.5),
             ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (1, 0), (1, 0), 14),
+            ('FONTSIZE', (1, 0), (1, 0), 13),
             ('TEXTCOLOR', (1, 0), (1, 0), colors.HexColor('#84CC16')),
             ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1F5F9')),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
         ]))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 6))
         elements.append(prix_table)
 
-    # Conseils au client
+    # Conseils
     conseils = (reparation.get('conseils') or '').strip()
     if conseils:
         elements.append(Paragraph("<b>NOS CONSEILS</b>", section_style))
-        # Bloc encadré vert pâle
         tip_table = Table([[Paragraph(conseils.replace('\n', '<br/>'), tip_style)]],
-                          colWidths=[17 * cm])
+                          colWidths=[18 * cm])
         tip_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FEE7')),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#84CC16')),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
         ]))
         elements.append(tip_table)
 
     # Message de fin
-    elements.append(Spacer(1, 14))
+    elements.append(Spacer(1, 6))
     elements.append(Paragraph(
         "Nous restons à votre disposition pour toute question concernant cette intervention. "
         "N'hésitez pas à nous recommander auprès de vos proches !",
         normal_style))
 
-    # Bandeau publicitaire (en bas de page)
-    if ad_banner_bytes:
+    # Callback canvas : dessine le bandeau publicitaire en bas, fixe
+    def _draw_banner(canvas, _doc):
+        if not banner_draw:
+            return
+        clean_buf, bw, bh = banner_draw
+        clean_buf.seek(0)
+        page_w, _ = A4
+        x = (page_w - bw) / 2
+        y = 0.6 * cm  # 6 mm du bord inférieur
         try:
-            from PIL import Image as PILImage  # vérifie l'intégrité avant reportlab
-            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
-            pil.verify()
-            # verify() consomme le flux -> on rouvre
-            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
-            if pil.mode in ("P", "RGBA"):
-                pil = pil.convert("RGB")
-            clean = io.BytesIO()
-            pil.save(clean, format="JPEG", quality=85)
-            clean.seek(0)
-            elements.append(Spacer(1, 12))
-            img = Image(clean)
-            max_w = 17 * cm
-            max_h = 7 * cm
-            iw, ih = img.imageWidth, img.imageHeight
-            ratio = min(max_w / iw, max_h / ih)
-            img.drawWidth = iw * ratio
-            img.drawHeight = ih * ratio
-            img.hAlign = 'CENTER'
-            elements.append(img)
+            canvas.drawImage(
+                ImageReader(clean_buf), x, y,
+                width=bw, height=bh,
+                preserveAspectRatio=True, mask='auto')
         except Exception as exc:
-            logger.error(f"Failed to embed ad banner: {exc}")
+            logger.error(f"Failed to draw banner on canvas: {exc}")
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=_draw_banner, onLaterPages=_draw_banner)
     buffer.seek(0)
     return buffer.getvalue()
+
 
 
 def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
