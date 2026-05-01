@@ -161,7 +161,7 @@ export default function EncaisserDialog({ open, onOpenChange, reparation, onSucc
           <div className={`rounded-lg p-3 text-sm ${
             Math.abs(diff) < 0.01
               ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-amber-50 text-amber-800 border border-amber-200"
+              : "bg-slate-100 text-slate-700 border border-slate-300"
           }`}>
             <div className="flex justify-between">
               <span>Total saisi :</span>
