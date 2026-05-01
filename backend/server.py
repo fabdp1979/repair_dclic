@@ -2198,7 +2198,7 @@ async def export_caisse_excel(
         "", "",  # T2, U2
     ]
     COL_WIDTHS = {
-        "A": 12, "B": 10, "C": 10, "D": 10, "E": 8, "F": 12,
+        "A": 22, "B": 10, "C": 10, "D": 10, "E": 8, "F": 12,
         "G": 12, "H": 12, "I": 14,
         "J": 10, "K": 10, "L": 10, "M": 10,
         "N": 24, "O": 12, "P": 14, "Q": 20, "R": 12, "S": 12,
@@ -2240,12 +2240,15 @@ async def export_caisse_excel(
             c.font = sub_font
             c.alignment = center
             c.border = border
-        # I2 = report du solde caisse du mois précédent
+        # I2 = report du solde caisse du mois précédent — format monétaire, aligné à droite
         if idx == 0:
-            ws.cell(row=2, column=9, value=0)
+            i2_cell = ws.cell(row=2, column=9, value=0)
         else:
             prev_month_key, prev_sname, prev_total_row = month_totals_by_sheet[idx - 1]
-            ws.cell(row=2, column=9, value=f"='{prev_sname}'!I{prev_total_row}")
+            i2_cell = ws.cell(row=2, column=9, value=f"='{prev_sname}'!I{prev_total_row}")
+        i2_cell.number_format = '#,##0.00 €'
+        i2_cell.alignment = Alignment(horizontal="right", vertical="center")
+        i2_cell.font = bold_font
 
         # Rows 3.. : une ligne par jour trié
         days = sorted(months_data[month_key].keys())
@@ -2253,9 +2256,10 @@ async def export_caisse_excel(
         for i, d in enumerate(days):
             r = 3 + i
             day = months_data[month_key][d]
-            # A: DATE
+            # A: DATE au format "jeudi 4 janvier" (locale FR)
             try:
-                ws.cell(row=r, column=1, value=datetime.fromisoformat(d)).number_format = "DD/MM/YYYY"
+                cell_a = ws.cell(row=r, column=1, value=datetime.fromisoformat(d))
+                cell_a.number_format = '[$-40C]dddd d mmmm'
             except Exception:
                 ws.cell(row=r, column=1, value=d)
             # B/C/D: ESPECES/CHEQUES/CB
