@@ -22,6 +22,7 @@ import ReparationsPage from "./pages/ReparationsPage";
 import CommandesPage from "./pages/CommandesPage";
 import EncaissementPage from "./pages/EncaissementPage";
 import CaissePage from "./pages/CaissePage";
+import ParametresPage from "./pages/ParametresPage";
 
 // Pages iPad / publiques (no auth)
 import SuiviPage from "./pages/SuiviPage";
@@ -57,6 +58,7 @@ function App() {
             <Route path="/commandes" element={<ProtectedRoute><CommandesPage /></ProtectedRoute>} />
             <Route path="/encaissement" element={<ProtectedRoute><EncaissementPage /></ProtectedRoute>} />
             <Route path="/caisse" element={<ProtectedRoute><CaissePage /></ProtectedRoute>} />
+            <Route path="/parametres" element={<ProtectedRoute><ParametresPage /></ProtectedRoute>} />
 
             {/* iPad / public */}
             <Route path="/suivi/:trackingId" element={<SuiviPage />} />

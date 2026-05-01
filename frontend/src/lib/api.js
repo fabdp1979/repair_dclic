@@ -57,7 +57,14 @@ export const getClientPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/client
 
 export const getInternalPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/interne`;
 
+export const getCompteRenduPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/compte-rendu`;
+
 export const getQrCodeUrl = (id) => `${API_BASE}/reparations/${id}/qrcode`;
+
+// Bannière publicitaire (compte-rendu)
+export const getAdBanner = () => api.get('/settings/ad-banner');
+export const putAdBanner = (image_b64) => api.put('/settings/ad-banner', { image_b64 });
+export const deleteAdBanner = () => api.delete('/settings/ad-banner');
 
 // Email
 export const sendRepairEmail = (id, force = false) =>

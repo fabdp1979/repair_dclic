@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X, LogOut, User, KeyRound,
+  LayoutDashboard, Users, Wrench, BookOpen, ShoppingCart, CreditCard, Menu, X, LogOut, User, KeyRound, Settings,
 } from "lucide-react";
 import ModeSwitcher from "../components/ModeSwitcher";
 import ChangePasswordDialog from "../components/ChangePasswordDialog";
@@ -20,6 +20,7 @@ const ALL_NAV = [
   { name: "Commandes client", href: "/commandes", icon: ShoppingCart, ipad: false, ipadName: null },
   { name: "Encaissement", href: "/encaissement", icon: CreditCard, ipad: false, ipadName: null },
   { name: "Journal de caisse", href: "/caisse", icon: BookOpen, ipad: false, ipadName: null },
+  { name: "Paramètres", href: "/parametres", icon: Settings, ipad: false, ipadName: null },
 ];
 
 function getNavigation(isIpad) {

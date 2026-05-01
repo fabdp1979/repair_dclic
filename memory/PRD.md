@@ -115,6 +115,20 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - [x] Affichage sur **page iPad /signer** (bloc ambre en haut, avant les conditions) pour acknowledgment client
 - [x] Endpoint public `/api/reparations/{id}/public` expose numero_serie + etat_depot
 
+## Itération 12 — 01 mai 2026 (Fiche compte rendu + bannière publicitaire)
+- [x] Nouveau champ `conseils` sur la réparation (saisi dans le formulaire — section Diagnostic)
+- [x] Nouveau endpoint `GET /api/reparations/{id}/pdf/compte-rendu` — PDF à remettre au client après réparation :
+  - En-tête DCLIC + remerciement personnalisé
+  - Bloc client + matériel + N° série
+  - Problème signalé / Diagnostic / Intervention réalisée
+  - Encart prix TTC mis en valeur
+  - Encart "Nos conseils" (fond vert pâle, bordure verte)
+  - Bandeau publicitaire en bas de page (si configuré)
+- [x] Endpoints `/api/settings/ad-banner` (GET public / PUT & DELETE authentifiés) pour upload/suppression
+- [x] Nouvelle page `/parametres` (icône Settings dans la sidebar) — uploader la bannière (JPG/PNG/WebP ≤ 3 Mo, prévisualisation, dernière MAJ)
+- [x] Bouton **"Compte rendu"** vert dans la liste des réparations (à côté de Client/Interne)
+- [x] Robustesse : image validée via PIL avant intégration reportlab pour éviter les PDFs corrompus
+
 ## Configuration email Resend (P0 Setup restant)
 1. Créer un compte sur https://resend.com
 2. Générer une clé API

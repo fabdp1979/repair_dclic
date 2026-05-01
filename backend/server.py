@@ -218,6 +218,8 @@ class ReparationBase(BaseModel):
     # Diagnostic et action
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
+    # Conseils au client (affichés sur la fiche compte-rendu)
+    conseils: Optional[str] = None
     prix: Optional[float] = None
     # Statuts
     statut: str = "Réparation enregistrée"
@@ -238,6 +240,7 @@ class ReparationUpdate(BaseModel):
     etat_depot: Optional[str] = None
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
+    conseils: Optional[str] = None
     prix: Optional[float] = None
     statut: Optional[str] = None
     statut_interne: Optional[str] = None
@@ -265,6 +268,7 @@ class Reparation(BaseModel):
     etat_depot: Optional[str] = None
     diagnostic: Optional[str] = None
     action_realisee: Optional[str] = None
+    conseils: Optional[str] = None
     prix: Optional[float] = None
     statut: str = "Réparation enregistrée"
     statut_interne: Optional[str] = "En cours"
@@ -662,6 +666,173 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     buffer.seek(0)
     return buffer.getvalue()
 
+def generate_compte_rendu_pdf(reparation: dict, client: dict, ad_banner_bytes: Optional[bytes] = None) -> bytes:
+    """Generate the client handoff report PDF (delivered when repair is complete).
+    Includes: what was done, price, personalized advice, and an optional ad banner.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+                            topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'],
+                                 fontSize=18, spaceAfter=10,
+                                 textColor=colors.HexColor('#84CC16'), alignment=1)
+    header_style = ParagraphStyle('Header', parent=styles['Normal'],
+                                  fontSize=9, textColor=colors.HexColor('#64748B'), alignment=1)
+    section_style = ParagraphStyle('Section', parent=styles['Heading2'],
+                                   fontSize=12, spaceBefore=14, spaceAfter=6,
+                                   textColor=colors.HexColor('#0F172A'))
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'],
+                                  fontSize=10, spaceAfter=4, leading=13)
+    price_style = ParagraphStyle('Price', parent=styles['Normal'],
+                                 fontSize=14, fontName='Helvetica-Bold',
+                                 textColor=colors.HexColor('#84CC16'), alignment=2)
+    thank_style = ParagraphStyle('Thank', parent=styles['Normal'],
+                                 fontSize=11, fontName='Helvetica-Oblique',
+                                 textColor=colors.HexColor('#0F172A'), alignment=1, spaceAfter=8)
+    tip_style = ParagraphStyle('Tip', parent=styles['Normal'],
+                               fontSize=10, textColor=colors.HexColor('#374151'),
+                               leading=14, spaceAfter=3)
+
+    elements = []
+
+    # En-tête
+    elements.append(Paragraph(COMPANY_INFO["name"], title_style))
+    elements.append(Paragraph(COMPANY_INFO["address"], header_style))
+    elements.append(Paragraph(
+        f"Tél : {COMPANY_INFO['phone']} | Email : {COMPANY_INFO['email']}",
+        header_style))
+    elements.append(Spacer(1, 12))
+
+    elements.append(Paragraph(
+        f"<b>COMPTE RENDU DE RÉPARATION — N° {reparation['numero']}</b>",
+        section_style))
+    elements.append(Paragraph(
+        f"Date de dépôt : {_fr_date(reparation.get('date_creation'))} — "
+        f"Date d'édition : {datetime.now().strftime('%d/%m/%Y')}",
+        normal_style))
+    elements.append(Spacer(1, 8))
+
+    # Remerciement
+    elements.append(Paragraph(
+        f"Bonjour {client.get('prenom', '')} {client.get('nom', '')},<br/>"
+        "Merci pour votre confiance. Voici le récapitulatif de l'intervention réalisée.",
+        thank_style))
+
+    # Client + matériel
+    materiel_list = get_materiel_fourni_list(
+        reparation.get('materiel_fourni', {}),
+        reparation.get('autre_materiel'))
+    info_data = [
+        ["Client :", f"{client.get('prenom', '')} {client.get('nom', '')}"],
+        ["Téléphone :", client.get('telephone', '-') or '-'],
+        ["Matériel :", ", ".join(materiel_list) if materiel_list else "-"],
+    ]
+    if reparation.get('numero_serie'):
+        info_data.append(["N° de série :", reparation.get('numero_serie', '-')])
+    info_table = Table(info_data, colWidths=[4 * cm, 13 * cm])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.3, colors.HexColor('#E5E7EB')),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 10))
+
+    # Ce qui a été fait
+    elements.append(Paragraph("<b>PROBLÈME SIGNALÉ</b>", section_style))
+    elements.append(Paragraph(reparation.get('description_panne') or '-', normal_style))
+
+    if reparation.get('diagnostic'):
+        elements.append(Paragraph("<b>DIAGNOSTIC</b>", section_style))
+        elements.append(Paragraph(reparation['diagnostic'], normal_style))
+
+    if reparation.get('action_realisee'):
+        elements.append(Paragraph("<b>INTERVENTION RÉALISÉE</b>", section_style))
+        elements.append(Paragraph(reparation['action_realisee'], normal_style))
+
+    # Prix
+    prix = reparation.get('prix')
+    if prix is not None:
+        prix_table = Table(
+            [["Montant total de l'intervention :", f"{float(prix):.2f} €"]],
+            colWidths=[12 * cm, 5 * cm],
+        )
+        prix_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (0, 0), 11),
+            ('FONTNAME', (1, 0), (1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (1, 0), (1, 0), 14),
+            ('TEXTCOLOR', (1, 0), (1, 0), colors.HexColor('#84CC16')),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1F5F9')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ]))
+        elements.append(Spacer(1, 10))
+        elements.append(prix_table)
+
+    # Conseils au client
+    conseils = (reparation.get('conseils') or '').strip()
+    if conseils:
+        elements.append(Paragraph("<b>NOS CONSEILS</b>", section_style))
+        # Bloc encadré vert pâle
+        tip_table = Table([[Paragraph(conseils.replace('\n', '<br/>'), tip_style)]],
+                          colWidths=[17 * cm])
+        tip_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F7FEE7')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#84CC16')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        elements.append(tip_table)
+
+    # Message de fin
+    elements.append(Spacer(1, 14))
+    elements.append(Paragraph(
+        "Nous restons à votre disposition pour toute question concernant cette intervention. "
+        "N'hésitez pas à nous recommander auprès de vos proches !",
+        normal_style))
+
+    # Bandeau publicitaire (en bas de page)
+    if ad_banner_bytes:
+        try:
+            from PIL import Image as PILImage  # vérifie l'intégrité avant reportlab
+            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
+            pil.verify()
+            # verify() consomme le flux -> on rouvre
+            pil = PILImage.open(io.BytesIO(ad_banner_bytes))
+            if pil.mode in ("P", "RGBA"):
+                pil = pil.convert("RGB")
+            clean = io.BytesIO()
+            pil.save(clean, format="JPEG", quality=85)
+            clean.seek(0)
+            elements.append(Spacer(1, 12))
+            img = Image(clean)
+            max_w = 17 * cm
+            max_h = 7 * cm
+            iw, ih = img.imageWidth, img.imageHeight
+            ratio = min(max_w / iw, max_h / ih)
+            img.drawWidth = iw * ratio
+            img.drawHeight = ih * ratio
+            img.hAlign = 'CENTER'
+            elements.append(img)
+        except Exception as exc:
+            logger.error(f"Failed to embed ad banner: {exc}")
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
     """Generate internal PDF (with password and all details)"""
     buffer = io.BytesIO()
@@ -975,6 +1146,7 @@ async def create_reparation(reparation: ReparationCreate):
         "etat_depot": reparation.etat_depot,
         "diagnostic": reparation.diagnostic,
         "action_realisee": reparation.action_realisee,
+        "conseils": reparation.conseils,
         "prix": reparation.prix,
         "statut": reparation.statut,
         "statut_interne": reparation.statut_interne,
@@ -1516,6 +1688,88 @@ async def get_internal_pdf(reparation_id: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
+
+
+# ---------- Paramètres : bannière publicitaire du compte-rendu ----------
+
+class AdBannerPayload(BaseModel):
+    image_b64: str  # data URI ou base64 brut (JPG/PNG)
+
+
+async def _get_ad_banner_bytes() -> Optional[bytes]:
+    doc = await db.settings.find_one({"key": "ad_banner"}, {"_id": 0})
+    if not doc or not doc.get("image_b64"):
+        return None
+    raw = doc["image_b64"]
+    if raw.startswith("data:"):
+        raw = raw.split(",", 1)[1]
+    try:
+        return base64.b64decode(raw)
+    except Exception:
+        return None
+
+
+@api_router.get("/settings/ad-banner")
+async def get_ad_banner():
+    """Retourne la bannière publicitaire stockée (métadonnées + image base64)."""
+    doc = await db.settings.find_one({"key": "ad_banner"}, {"_id": 0})
+    if not doc:
+        return {"exists": False, "image_b64": None, "updated_at": None}
+    return {
+        "exists": bool(doc.get("image_b64")),
+        "image_b64": doc.get("image_b64"),
+        "updated_at": doc.get("updated_at"),
+    }
+
+
+@api_router.put("/settings/ad-banner")
+async def put_ad_banner(payload: AdBannerPayload, user: dict = Depends(get_current_user)):
+    """Upload/remplace la bannière publicitaire. Limite ~3 Mo."""
+    raw = payload.image_b64 or ""
+    if len(raw) > 4_500_000:  # ~3.3 Mo après base64
+        raise HTTPException(status_code=413, detail="Image trop lourde (limite ~3 Mo)")
+    if len(raw) < 100:
+        raise HTTPException(status_code=400, detail="Image invalide")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.settings.update_one(
+        {"key": "ad_banner"},
+        {"$set": {"key": "ad_banner", "image_b64": raw, "updated_at": now_iso}},
+        upsert=True,
+    )
+    return {"success": True, "updated_at": now_iso}
+
+
+@api_router.delete("/settings/ad-banner")
+async def delete_ad_banner(user: dict = Depends(get_current_user)):
+    await db.settings.delete_one({"key": "ad_banner"})
+    return {"success": True}
+
+
+@api_router.get("/reparations/{reparation_id}/pdf/compte-rendu")
+async def get_compte_rendu_pdf(reparation_id: str):
+    """Fiche compte rendu à remettre au client après la réparation."""
+    rep = await db.reparations.find_one({"id": reparation_id}, {"_id": 0})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+
+    client = await db.clients.find_one({"id": rep["client_id"]}, {"_id": 0})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client non trouvé")
+
+    ad_bytes = await _get_ad_banner_bytes()
+    pdf_content = generate_compte_rendu_pdf(rep, client, ad_banner_bytes=ad_bytes)
+
+    filename = sanitize_filename(f"Reparation_n{rep['numero']}_compte_rendu.pdf")
+    filepath = PDF_DIR / filename
+    with open(filepath, 'wb') as f:
+        f.write(pdf_content)
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
+    )
+
 
 @api_router.get("/reparations/{reparation_id}/qrcode")
 async def get_qrcode(reparation_id: str):

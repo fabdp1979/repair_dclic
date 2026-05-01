@@ -24,7 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getReparations, createReparation, updateReparation, deleteReparation,
-  getClients, createClient, getClientPdfUrl, getInternalPdfUrl, 
+  getClients, createClient, getClientPdfUrl, getInternalPdfUrl, getCompteRenduPdfUrl,
   sendRepairEmail, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
 import { formatDateFR } from "../lib/date";
@@ -74,6 +74,7 @@ const emptyReparation = {
   etat_depot: "",
   diagnostic: "",
   action_realisee: "",
+  conseils: "",
   prix: "",
   statut: "Réparation enregistrée",
   statut_interne: "En cours"
@@ -171,6 +172,7 @@ export default function ReparationsPage() {
         etat_depot: reparation.etat_depot || "",
         diagnostic: reparation.diagnostic || "",
         action_realisee: reparation.action_realisee || "",
+        conseils: reparation.conseils || "",
         prix: reparation.prix?.toString() || "",
         statut: reparation.statut,
         statut_interne: reparation.statut_interne
@@ -539,6 +541,18 @@ export default function ReparationsPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        className="text-[#84CC16] border-[#84CC16] hover:bg-[#84CC16]/10"
+                        onClick={() => window.open(getCompteRenduPdfUrl(reparation.id), '_blank')}
+                        title="Fiche compte rendu à remettre au client"
+                        data-testid={`compte-rendu-btn-${reparation.id}`}
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        Compte rendu
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => copyTrackingLink(reparation)}
                         title="Copier lien de suivi"
                       >
@@ -767,6 +781,17 @@ export default function ReparationsPage() {
                       onChange={(e) => setFormData({...formData, action_realisee: e.target.value})}
                       placeholder="Actions effectuées"
                       rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="conseils">Conseils au client (affichés sur la fiche compte-rendu)</Label>
+                    <Textarea
+                      id="conseils"
+                      data-testid="repair-conseils-input"
+                      value={formData.conseils}
+                      onChange={(e) => setFormData({...formData, conseils: e.target.value})}
+                      placeholder="Ex : pensez à sauvegarder vos données régulièrement, évitez d'exposer l'appareil à la chaleur, nettoyez la grille de ventilation tous les 3 mois…"
+                      rows={3}
                     />
                   </div>
                   <div className="grid grid-cols-3 gap-4">
