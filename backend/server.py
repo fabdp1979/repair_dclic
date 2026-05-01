@@ -2158,33 +2158,43 @@ async def export_caisse_excel(
     manual_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid") # bleu pâle
     total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")  # gris clair
 
-    # Colonnes calculées/auto-remplies (A..S)
-    AUTO_COLS = {1, 2, 3, 4, 6, 8, 9, 12, 13, 15, 16, 17}  # A,B,C,D,F,H,I,L,M,O,P,Q
+    # Colonnes calculées/auto-remplies (A..U)
+    AUTO_COLS = {1, 2, 3, 4, 6, 9, 12, 13}  # A,B,C,D,F,I,L,M
     # Colonnes à remplir manuellement
-    MANUAL_COLS = {5, 7, 10, 11, 14, 18, 19}               # E,G,J,K,N,R,S
+    MANUAL_COLS = {5, 7, 8, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21}
+    # E,G,H,J,K,N,O,P,Q,R,S,T,U
 
-    # Colonnes de la feuille (A..S)
+    # Colonnes de la feuille (A..U)
     HEADERS_ROW1 = [
         "DATE", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL CA",
         "ENCAISSEM", "DEPENSES", "SOLDE CAISSE",
         "CLIENTS FACTURéS", "",  # J:K fusionnées
         "TOTAL ", "TOTAL",        # L:M fusionnées
-        "REMARQUES", "REGLEMENT", "NUMERO", "NOM\nFACTURE",
+        "REMARQUES",
+        "VIREMENT",               # O (fusionné O1:O2)
+        "N° FACTURE",             # P (fusionné P1:P2)
+        "NOM\nFACTURE",
         "GoCardLess\nmontant net", "Frais de\ncommission",
+        "Nom", "Facture/échéancier",  # T, U (nouveaux — manuels)
     ]
     HEADERS_ROW2 = [
         "REPORT M-1", "", "", "", "", "",
         "clients", "fourniss", "",     # I2 sera rempli par formule
         "chèques", "CB",
         "REM CHQ", "REM CB",
-        "", "VIREMENT", "FACTURE", "",
+        "",
+        "",   # O2 fusionné avec O1 → vide
+        "",   # P2 fusionné avec P1 → vide
+        "",
         "", "",
+        "", "",  # T2, U2
     ]
     COL_WIDTHS = {
         "A": 12, "B": 10, "C": 10, "D": 10, "E": 8, "F": 12,
         "G": 12, "H": 12, "I": 14,
         "J": 10, "K": 10, "L": 10, "M": 10,
-        "N": 24, "O": 12, "P": 12, "Q": 20, "R": 12, "S": 12,
+        "N": 24, "O": 12, "P": 14, "Q": 20, "R": 12, "S": 12,
+        "T": 18, "U": 22,
     }
 
     ordered_month_keys = sorted(months_data.keys())
@@ -2204,9 +2214,14 @@ async def export_caisse_excel(
         # Fusions ligne 1
         ws.merge_cells("J1:K1")
         ws.merge_cells("L1:M1")
+        # Fusions verticales O1:O2 et P1:P2 (demande user — un seul label sur 2 lignes)
+        ws.merge_cells("O1:O2")
+        ws.merge_cells("P1:P2")
 
-        # Row 2 sub-headers
+        # Row 2 sub-headers (O2 et P2 sont fusionnés avec O1/P1 → on les saute)
         for col_i, h in enumerate(HEADERS_ROW2, start=1):
+            if col_i in (15, 16):  # cellules fusionnées — ne pas écrire
+                continue
             c = ws.cell(row=2, column=col_i, value=h)
             c.font = sub_font
             c.alignment = center
@@ -2257,8 +2272,8 @@ async def export_caisse_excel(
             if day["nom"]:
                 ws.cell(row=r, column=17, value=", ".join(day["nom"]))
 
-            # Bordures + fond de couleur sur TOUTES les cellules de la ligne (A..S)
-            for col_i in range(1, 20):
+            # Bordures + fond de couleur sur TOUTES les cellules de la ligne (A..U)
+            for col_i in range(1, 22):
                 cell = ws.cell(row=r, column=col_i)
                 cell.border = border
                 if col_i in AUTO_COLS:
@@ -2286,7 +2301,7 @@ async def export_caisse_excel(
         else:
             ws.cell(row=total_row, column=9, value=f"=I2").font = bold_font
         # Bordures + fond gris clair sur toute la ligne TOTAL MOIS
-        for col_i in range(1, 20):
+        for col_i in range(1, 22):
             cell = ws.cell(row=total_row, column=col_i)
             cell.border = border
             cell.fill = total_fill
