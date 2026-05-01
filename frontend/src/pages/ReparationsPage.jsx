@@ -27,7 +27,9 @@ import {
   getClients, createClient, getClientPdfUrl, getInternalPdfUrl, 
   sendRepairEmail, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
+import { formatDateFR } from "../lib/date";
 import { detectAuto } from "../hooks/useDeviceMode";
+import ClientCombobox from "../components/ClientCombobox";
 import { toast } from "sonner";
 import Fuse from "fuse.js";
 
@@ -443,7 +445,7 @@ export default function ReparationsPage() {
                         <div>
                           <p className="text-slate-500 text-xs">Date</p>
                           <p className="text-slate-700">
-                            {reparation.date_creation?.substring(0, 10)} {reparation.heure_creation}
+                            {formatDateFR(reparation.date_creation)} {reparation.heure_creation}
                           </p>
                         </div>
                         <div>
@@ -462,7 +464,7 @@ export default function ReparationsPage() {
                     <div className="flex flex-wrap gap-2 items-center">
                       {/* Signature status badge */}
                       {reparation.signature_b64 ? (
-                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium border border-green-200" title={`Signé le ${reparation.date_signature?.slice(0,10)}`}>
+                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium border border-green-200" title={`Signé le ${formatDateFR(reparation.date_signature)}`}>
                           <CheckCircle className="w-3 h-3" />
                           Signée
                         </span>

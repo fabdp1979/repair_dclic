@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Wrench, CheckCircle, Clock, AlertTriangle, Package } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
 import { getPublicTracking } from "../lib/api";
+import { formatDateFR } from "../lib/date";
 
 const STATUTS_PROGRESSION = [
   { key: "Réparation enregistrée", label: "Enregistrée", icon: Package },
@@ -91,7 +92,7 @@ export default function SuiviPage() {
               <h2 className="font-outfit text-2xl font-bold text-slate-900 mt-2">
                 Bonjour {data.client_prenom} {data.client_nom}
               </h2>
-              <p className="text-slate-500 mt-1">Dépôt le {data.date_depot}</p>
+              <p className="text-slate-500 mt-1">Dépôt le {formatDateFR(data.date_depot)}</p>
               {data.urgence && (
                 <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm mt-2">
                   <AlertTriangle className="w-4 h-4" />

@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { getClient, getClientReparations, getClientCommandes } from "../lib/api";
+import { formatDateFR } from "../lib/date";
 import { toast } from "sonner";
 
 export default function ClientDetailPage() {
@@ -166,7 +167,7 @@ export default function ClientDetailPage() {
                           )}
                         </div>
                         <p className="text-sm text-slate-600 mt-1">{rep.description_panne?.substring(0, 50)}...</p>
-                        <p className="text-xs text-slate-400">{rep.date_creation?.substring(0, 10)}</p>
+                        <p className="text-xs text-slate-400">{formatDateFR(rep.date_creation)}</p>
                       </div>
                       <div className="text-right">
                         <span className={`text-xs px-2 py-1 rounded-full ${
@@ -208,7 +209,7 @@ export default function ClientDetailPage() {
                       <div>
                         <span className="font-mono text-sm text-slate-500">{cmd.numero}</span>
                         <p className="text-sm font-medium text-slate-900">{cmd.designation}</p>
-                        <p className="text-xs text-slate-400">{cmd.date_creation?.substring(0, 10)}</p>
+                        <p className="text-xs text-slate-400">{formatDateFR(cmd.date_creation)}</p>
                       </div>
                       <div className="text-right">
                         <span className={`text-xs px-2 py-1 rounded-full ${

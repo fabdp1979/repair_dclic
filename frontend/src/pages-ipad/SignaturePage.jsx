@@ -15,6 +15,7 @@ import {
   getReparationPublic, saveSignature, deleteSignature,
   ipadHeartbeat, ipadCurrent, ipadRelease,
 } from "../lib/api";
+import { formatDateFR } from "../lib/date";
 import { toast } from "sonner";
 
 const AFTER_SIGN_RETURN_MS = 5000; // retour /ipad après signature
@@ -184,7 +185,7 @@ export default function SignaturePage() {
             <p className="text-base sm:text-lg text-slate-500 mt-1">
               Fiche n° <span className="font-mono text-[#84CC16] font-semibold">{data.numero}</span>
               {" — "}
-              {data.date_creation}
+              {formatDateFR(data.date_creation)}
             </p>
           </div>
           {alreadySigned && (
@@ -283,7 +284,7 @@ export default function SignaturePage() {
                 <h2 className="text-2xl font-bold text-slate-900">Signature déjà enregistrée</h2>
                 <p className="text-base text-slate-500 mt-1">
                   {data.nom_signataire ? `Par ${data.nom_signataire} ` : ""}
-                  le {data.date_signature?.slice(0, 10)}
+                  le {formatDateFR(data.date_signature)}
                 </p>
               </div>
             </div>

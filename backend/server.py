@@ -462,6 +462,16 @@ def get_materiel_fourni_list(materiel: Dict[str, bool], autre: str = None) -> Li
         result.append(f"Autre: {autre}")
     return result
 
+def _fr_date(iso_str: Optional[str]) -> str:
+    """Convertit une date ISO (YYYY-MM-DD[T...]) en jj/mm/aaaa."""
+    if not iso_str:
+        return ""
+    raw = iso_str[:10]
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except Exception:
+        return raw
+
 def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None, force_no_signature: bool = False) -> bytes:
     """Generate PDF for client (without password, with conditions)"""
     buffer = io.BytesIO()
@@ -495,7 +505,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     
     # Title with number and date
     elements.append(Paragraph(f"<b>FICHE DE RÉPARATION N° {reparation['numero']}</b>", section_style))
-    elements.append(Paragraph(f"Date: {reparation.get('date_creation', '')[:10]} - Heure: {reparation.get('heure_creation', '')}", normal_style))
+    elements.append(Paragraph(f"Date: {_fr_date(reparation.get('date_creation'))} - Heure: {reparation.get('heure_creation', '')}", normal_style))
     if reparation.get('urgence'):
         elements.append(Paragraph("<font color='red'><b>⚠ RÉPARATION URGENTE (+25€)</b></font>", normal_style))
     elements.append(Spacer(1, 10))
@@ -598,16 +608,25 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     # Bloc signature
     if reparation.get("signature_b64"):
         signataire = reparation.get("nom_signataire") or f"{client.get('prenom','')} {client.get('nom','')}".strip()
-        date_sig = reparation.get("date_signature", "")[:10]
+        date_sig_iso = reparation.get("date_signature", "")[:10]
+        # Format jj/mm/aaaa
+        if date_sig_iso and len(date_sig_iso) == 10:
+            try:
+                date_sig = datetime.strptime(date_sig_iso, "%Y-%m-%d").strftime("%d/%m/%Y")
+            except Exception:
+                date_sig = date_sig_iso
+        else:
+            date_sig = date_sig_iso
         elements.append(Paragraph("<b>Lu et approuvé, bon pour accord</b>", normal_style))
         elements.append(Paragraph(f"Nom : {signataire}    —    Date : {date_sig}", normal_style))
-        elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 6))
         try:
             raw = reparation["signature_b64"]
             if raw.startswith("data:"):
                 raw = raw.split(",", 1)[1]
             sig_bytes = base64.b64decode(raw)
-            sig_img = Image(io.BytesIO(sig_bytes), width=5 * cm, height=2 * cm)
+            # Signature triplée : 15cm × 6cm (était 5cm × 2cm)
+            sig_img = Image(io.BytesIO(sig_bytes), width=15 * cm, height=6 * cm)
             elements.append(sig_img)
         except Exception as exc:
             logger.error(f"Failed to embed signature: {exc}")
@@ -650,7 +669,7 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
     
     # Header
     elements.append(Paragraph(f"FICHE INTERNE N° {reparation['numero']}", title_style))
-    elements.append(Paragraph(f"Date: {reparation.get('date_creation', '')[:10]} - Heure: {reparation.get('heure_creation', '')}", normal_style))
+    elements.append(Paragraph(f"Date: {_fr_date(reparation.get('date_creation'))} - Heure: {reparation.get('heure_creation', '')}", normal_style))
     if reparation.get('urgence'):
         elements.append(Paragraph("<font color='red'><b>⚠ RÉPARATION URGENTE</b></font>", normal_style))
     elements.append(Spacer(1, 10))
@@ -731,7 +750,7 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
     elements.append(status_table)
     
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph(f"Créé le: {reparation['date_creation']}", normal_style))
+    elements.append(Paragraph(f"Créé le: {_fr_date(reparation.get('date_creation'))}", normal_style))
     elements.append(Paragraph(f"Modifié le: {reparation['date_modification']}", normal_style))
     elements.append(Paragraph(f"Tracking ID: {reparation.get('tracking_id', '-')}", normal_style))
     
@@ -1086,7 +1105,7 @@ async def get_reparation_public(reparation_id: str):
     return {
         "id": rep["id"],
         "numero": rep.get("numero"),
-        "date_creation": rep.get("date_creation", "")[:10],
+        "date_creation": _fr_date(rep.get("date_creation")),
         "client_nom": client.get("nom") if client else "",
         "client_prenom": client.get("prenom") if client else "",
         "client_telephone": client.get("telephone") if client else "",
