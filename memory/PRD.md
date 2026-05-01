@@ -94,6 +94,16 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - [x] Scroll natif unique sur `/signer/:id` (suppression du `max-h-[520px] overflow-y-auto` résiduel)
 - Tests : 8/8 backend + 4/4 frontend (100%) — `/app/test_reports/iteration_9.json`
 
+## Itération 10 — 01 mai 2026 (Mise en forme Excel — msg 181)
+- [x] Colonne N (REMARQUES) laissée **vide** dans l'export Caisse (plus d'auto-remplissage)
+- [x] **Bordures** sur toutes les cellules (data rows, TOTAL MOIS, HT/TVA, TOTAUX, légende)
+- [x] **Couleurs distinctes** :
+  - Vert pâle `#ECFCCB` = cellule auto-remplie (A, B, C, D, F, H, I, L, M, O, P, Q)
+  - Bleu pâle `#DBEAFE` = cellule à remplir manuellement (E, G, J, K, N, R, S)
+  - Gris clair `#F1F5F9` = lignes de totaux (TOTAL MOIS, HT, TVA, TOTAUX)
+- [x] **Légende** en haut de l'onglet TOTAUX (cases colorées avec libellés)
+- [x] Format nombre `#,##0.00` sur toutes les colonnes monétaires
+
 ## Configuration email Resend (P0 Setup restant)
 1. Créer un compte sur https://resend.com
 2. Générer une clé API

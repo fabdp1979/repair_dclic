@@ -2147,9 +2147,21 @@ async def export_caisse_excel(
     header_font = Font(bold=True, color="FFFFFF", size=10)
     sub_font = Font(italic=True, size=9, color="475569")
     bold_font = Font(bold=True, size=10)
-    thin = Side(style="thin", color="CBD5E1")
+    thin = Side(style="thin", color="94A3B8")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # Fonds distinctifs (demande user msg 181) :
+    # - Vert pâle = cellule remplie automatiquement (calculée ou importée depuis Encaissement/Caisse)
+    # - Bleu pâle = cellule à remplir manuellement par le gérant
+    auto_fill = PatternFill(start_color="ECFCCB", end_color="ECFCCB", fill_type="solid")   # vert pâle
+    manual_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid") # bleu pâle
+    total_fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")  # gris clair
+
+    # Colonnes calculées/auto-remplies (A..S)
+    AUTO_COLS = {1, 2, 3, 4, 6, 8, 9, 12, 13, 15, 16, 17}  # A,B,C,D,F,H,I,L,M,O,P,Q
+    # Colonnes à remplir manuellement
+    MANUAL_COLS = {5, 7, 10, 11, 14, 18, 19}               # E,G,J,K,N,R,S
 
     # Colonnes de la feuille (A..S)
     HEADERS_ROW1 = [
@@ -2234,9 +2246,7 @@ async def export_caisse_excel(
             # L: REM CHQ = C + J  ; M: REM CB = D + K
             ws.cell(row=r, column=12, value=f"=C{r}+J{r}")
             ws.cell(row=r, column=13, value=f"=D{r}+K{r}")
-            # N: REMARQUES
-            if day["remarques"]:
-                ws.cell(row=r, column=14, value=" | ".join(day["remarques"])[:250])
+            # N: REMARQUES — laissé VIDE (demande user msg 181 : à remplir à la main)
             # O: REGLEMENT (virements)
             if day["virement"]:
                 ws.cell(row=r, column=15, value=round(day["virement"], 2))
@@ -2246,6 +2256,17 @@ async def export_caisse_excel(
             # Q: NOM
             if day["nom"]:
                 ws.cell(row=r, column=17, value=", ".join(day["nom"]))
+
+            # Bordures + fond de couleur sur TOUTES les cellules de la ligne (A..S)
+            for col_i in range(1, 20):
+                cell = ws.cell(row=r, column=col_i)
+                cell.border = border
+                if col_i in AUTO_COLS:
+                    cell.fill = auto_fill
+                elif col_i in MANUAL_COLS:
+                    cell.fill = manual_fill
+                if col_i in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 18, 19):
+                    cell.number_format = "#,##0.00"
             last_data_row = r
 
         # Ligne TOTAL MOIS
@@ -2258,19 +2279,36 @@ async def export_caisse_excel(
                 cell = ws.cell(row=total_row, column=col_i,
                                value=f"=SUM({col_letter}3:{col_letter}{last_data_row})")
                 cell.font = bold_font
+                cell.number_format = "#,##0.00"
         # I TOTAL MOIS = solde caisse final
         if last_data_row >= 3:
             ws.cell(row=total_row, column=9, value=f"=I{last_data_row}").font = bold_font
         else:
             ws.cell(row=total_row, column=9, value=f"=I2").font = bold_font
+        # Bordures + fond gris clair sur toute la ligne TOTAL MOIS
+        for col_i in range(1, 20):
+            cell = ws.cell(row=total_row, column=col_i)
+            cell.border = border
+            cell.fill = total_fill
+            if not cell.font or not cell.font.bold:
+                cell.font = bold_font
 
         # Ligne HT / TVA
         ht_row = total_row + 2
         tva_row = total_row + 3
         ws.cell(row=ht_row, column=5, value="HT").font = bold_font
-        ws.cell(row=ht_row, column=6, value=f"=F{total_row}/1.2")
+        c = ws.cell(row=ht_row, column=6, value=f"=F{total_row}/1.2")
+        c.font = bold_font
+        c.number_format = "#,##0.00"
         ws.cell(row=tva_row, column=5, value="TVA").font = bold_font
-        ws.cell(row=tva_row, column=6, value=f"=F{ht_row}*0.2")
+        c = ws.cell(row=tva_row, column=6, value=f"=F{ht_row}*0.2")
+        c.font = bold_font
+        c.number_format = "#,##0.00"
+        for rr in (ht_row, tva_row):
+            for col_i in (5, 6):
+                cell = ws.cell(row=rr, column=col_i)
+                cell.border = border
+                cell.fill = total_fill
 
         # Largeurs colonnes
         for col_letter, w in COL_WIDTHS.items():
@@ -2284,6 +2322,20 @@ async def export_caisse_excel(
     # ---------- 5. Onglet TOTAUX ----------
     ws = wb.create_sheet(title="TOTAUX")
     ws.cell(row=1, column=5, value=f"SOMME PERIODE").font = bold_font
+
+    # Légende couleurs (demande user msg 181)
+    ws.cell(row=1, column=13, value="LÉGENDE :").font = bold_font
+    c = ws.cell(row=1, column=14, value="  Auto-rempli  ")
+    c.fill = auto_fill
+    c.border = border
+    c.alignment = center
+    c = ws.cell(row=1, column=15, value="  À remplir  ")
+    c.fill = manual_fill
+    c.border = border
+    c.alignment = center
+    ws.column_dimensions["M"].width = 12
+    ws.column_dimensions["N"].width = 14
+    ws.column_dimensions["O"].width = 14
 
     tot_headers = ["MOIS", "ESPECES", "CHEQUES", "CB", "PNF", "TOTAL CA",
                    "ENCAISSEM", "DEPENSES", "SOLDE CAISSE", "CHQ+REM", "CB+REM"]
@@ -2300,6 +2352,13 @@ async def export_caisse_excel(
         ws.cell(row=r, column=1, value=f"{MONTH_ABBR[m]} {y}")
         for col_i, col_letter in enumerate(["B", "C", "D", "E", "F", "G", "H", "I", "L", "M"], start=2):
             ws.cell(row=r, column=col_i, value=f"='{sname}'!{col_letter}{total_row}")
+        # Bordures + fond vert pâle (toutes les cases du tableau récap sont auto-calculées)
+        for col_i in range(1, 12):
+            cell = ws.cell(row=r, column=col_i)
+            cell.border = border
+            cell.fill = auto_fill
+            if col_i > 1:
+                cell.number_format = "#,##0.00"
 
     # Ligne TOTAUX globale
     if month_totals_by_sheet:
@@ -2308,11 +2367,24 @@ async def export_caisse_excel(
         ws.cell(row=tot_row, column=1, value="TOTAUX :").font = bold_font
         for col_i in range(2, 12):
             letter = openpyxl.utils.get_column_letter(col_i)
-            ws.cell(row=tot_row, column=col_i, value=f"=SUM({letter}5:{letter}{last})").font = bold_font
+            cell = ws.cell(row=tot_row, column=col_i, value=f"=SUM({letter}5:{letter}{last})")
+            cell.font = bold_font
+            cell.number_format = "#,##0.00"
+        # Bordures + fond gris clair sur la ligne totaux globale
+        for col_i in range(1, 12):
+            cell = ws.cell(row=tot_row, column=col_i)
+            cell.border = border
+            cell.fill = total_fill
 
         # TOTAL CA global
         ws.cell(row=tot_row + 2, column=5, value="TOTAL CA :").font = bold_font
-        ws.cell(row=tot_row + 2, column=6, value=f"=F{tot_row}+I{tot_row}+J{tot_row}+L{tot_row}").font = bold_font
+        c = ws.cell(row=tot_row + 2, column=6, value=f"=F{tot_row}+I{tot_row}+J{tot_row}+L{tot_row}")
+        c.font = bold_font
+        c.number_format = "#,##0.00"
+        for col_i in (5, 6):
+            cell = ws.cell(row=tot_row + 2, column=col_i)
+            cell.border = border
+            cell.fill = total_fill
 
     for col_letter, w in {"A": 12, "B": 11, "C": 11, "D": 11, "E": 10, "F": 12,
                           "G": 12, "H": 12, "I": 14, "J": 12, "K": 12}.items():
