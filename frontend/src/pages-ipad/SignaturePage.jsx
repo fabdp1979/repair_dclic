@@ -208,7 +208,7 @@ export default function SignaturePage() {
               Merci de lire attentivement avant de signer.
             </p>
           </div>
-          <div className="px-8 py-8 max-h-[520px] overflow-y-auto space-y-7">
+          <div className="px-8 py-8 space-y-7">
             {Object.entries(CONDITION_LABELS).map(
               ([key, label]) =>
                 data.conditions?.[key] && (

@@ -592,27 +592,19 @@ export default function ReparationsPage() {
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <Label>Client *</Label>
-                    <Select
+                    <ClientCombobox
+                      clients={clients}
                       value={formData.client_id}
-                      onValueChange={(value) => setFormData({...formData, client_id: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner un client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.prenom} {client.nom} - {client.telephone}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(id) => setFormData({ ...formData, client_id: id })}
+                      onCreateNew={() => setClientDialogOpen(true)}
+                    />
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setClientDialogOpen(true)}
                     className="mt-6"
+                    data-testid="open-new-client-dialog"
                   >
                     <UserPlus className="w-4 h-4" />
                   </Button>
