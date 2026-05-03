@@ -2719,9 +2719,8 @@ async def export_caisse_excel(
             if day["virement"]:
                 ws.cell(row=r, column=15, value=round(day["virement"], 2))
             # P: NUMERO
-            if day["numero"]:
-                ws.cell(row=r, column=16, value=", ".join(day["numero"]))
-            # Q: NOM
+            # P: N° facture — laissé VIDE (colonne manuelle, demande user)
+            # Q: NOM FACTURE
             if day["nom"]:
                 ws.cell(row=r, column=17, value=", ".join(day["nom"]))
 

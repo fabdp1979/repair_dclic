@@ -417,10 +417,20 @@ export default function ReparationsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredReparations.map((reparation) => (
+              {filteredReparations.map((reparation) => {
+                const isTerminee =
+                  reparation.statut_interne === "Terminé" ||
+                  reparation.statut_interne === "Réglé" ||
+                  reparation.statut === "Appareil prêt";
+                return (
                 <div 
                   key={reparation.id}
-                  className="border border-slate-200 rounded-lg p-4 bg-white hover:shadow-sm transition-shadow"
+                  className={`border rounded-lg p-4 hover:shadow-sm transition-shadow ${
+                    isTerminee
+                      ? "bg-[#ECFCCB] border-[#84CC16]/40"
+                      : "bg-white border-slate-200"
+                  }`}
+                  data-testid={`reparation-card-${reparation.id}`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -612,7 +622,8 @@ export default function ReparationsPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
