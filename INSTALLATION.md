@@ -6,6 +6,23 @@ Ce guide explique, **pas à pas**, comment installer l'application **DCLIC Infor
 
 ---
 
+## 🚀 Installation rapide (script automatique — 10 min)
+
+Si vous êtes pressé, utilisez le **script d'installation automatique** qui fait tout ce qui est décrit dans ce guide :
+
+```bash
+# Connectez-vous en root sur votre VPS, puis :
+curl -fsSL https://raw.githubusercontent.com/VOTRE_COMPTE/VOTRE_DEPOT/main/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
+```
+
+Le script vous posera 5 questions (domaine, email admin, mot de passe, clé Resend, URL GitHub) puis installera tout automatiquement : Python, Node, MongoDB, Nginx, HTTPS, sauvegardes, etc.
+
+👉 **Si vous préférez comprendre chaque étape**, suivez le guide manuel ci-dessous.
+
+---
+
 ## 1. Ce qu'il vous faut avant de commencer
 
 - ✅ Un **VPS** (serveur privé virtuel) chez un hébergeur comme **OVH, Hetzner, Contabo, Ionos, Infomaniak…** avec :
