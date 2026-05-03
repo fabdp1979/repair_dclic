@@ -63,10 +63,10 @@ const STATUTS_CLIENT = [
   "Appareil prêt"
 ];
 
-// Catalogue des forfaits (tarif 2026) — mêmes clés côté backend
+// Catalogue des forfaits affichés sur la fiche réparation (tarif 2026)
+// Note : express_10 et rapide_30 existent dans Encaissement/Caisse
+// mais n'apparaissent PAS sur la fiche (saisie directe dans le prix).
 const FORFAITS_CATALOG = [
-  { key: "express_10", label: "Réparation express (<10 min)", prix: 10 },
-  { key: "rapide_30", label: "Réparation rapide (<30 min)", prix: 30 },
   { key: "standard_63", label: "Réparation standard (>30 min)", prix: 63 },
   { key: "urgence_89", label: "Forfait urgence (dépannage 24h)", prix: 89 },
   { key: "apple_89", label: "Forfait Apple", prix: 89 },

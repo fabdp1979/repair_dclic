@@ -23,13 +23,18 @@ const SIGNER_POLL_MS = 10000;      // polling lent pendant qu'on est sur /signer
 
 const CONDITION_LABELS = {
   prise_en_charge: "Prise en charge du matériel",
+  donnees: "Données et sauvegarde",
+  tarifs: "Tarifs des réparations",
+  devis: "Devis et diagnostic",
+  recuperation: "Récupération de données",
+  imprimantes: "Imprimantes",
+  montage: "Montage et matériel Dclic",
+  domicile: "Intervention à domicile",
   delais: "Délais",
-  devis: "Devis",
-  tarifs: "Tarifs",
-  reglement: "Règlement",
   garantie: "Garantie",
-  abandon: "Abandon",
-  contestations: "Contestations",
+  abandon: "Abandon du matériel",
+  paiement: "Paiement",
+  acceptation: "Acceptation",
   donnees_personnelles: "Données personnelles (RGPD)",
 };
 

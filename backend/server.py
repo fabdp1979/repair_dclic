@@ -59,55 +59,80 @@ COMPANY_INFO = {
 CONDITIONS_REPARATION = {
     "prise_en_charge": (
         "Dclic Informatique est responsable du matériel confié en cas de détérioration "
-        "(partielle ou totale) ou de vol survenu pendant sa prise en charge. "
-        "Le matériel est pris en charge en l'état. Dclic Informatique ne pourra être tenu "
-        "responsable d'une aggravation d'une panne préexistante. "
-        "La société ne pourra être tenue responsable en cas de perte de données. Le client "
-        "reconnaît être seul responsable de la sauvegarde de ses données et accepte le risque "
-        "de perte totale ou partielle lors de l'intervention. "
-        "En cas de réinstallation du système, le client devra fournir une licence Windows "
-        "valide et officielle. À défaut, une version d'évaluation limitée à 30 jours pourra "
-        "être installée, dans la mesure du possible."
+        "ou de vol survenu pendant sa prise en charge. Le matériel est pris en charge "
+        "dans l'état constaté lors du dépôt. Dclic Informatique ne pourra être tenu "
+        "responsable d'une aggravation d'une panne préexistante ni de défauts non visibles "
+        "lors du dépôt."
     ),
-    "delais": (
-        "Les délais de réparation dépendent de la charge de travail et de la disponibilité "
-        "des pièces détachées. Aucune indemnité ne pourra être demandée en cas de dépassement "
-        "des délais annoncés. Le client peut, s'il le souhaite, souscrire à l'option "
-        "Réparation urgente (25 €), permettant une prise en charge prioritaire."
-    ),
-    "devis": (
-        "Tout devis est gratuit s'il est accepté. En cas de refus, un montant forfaitaire "
-        "de 15 € TTC sera facturé."
+    "donnees": (
+        "Le client reste entièrement responsable de ses données. Aucune garantie n'est "
+        "apportée quant à leur conservation lors d'une intervention. Une option de "
+        "sauvegarde avant réparation, facturée 10 €, peut être proposée et est fortement "
+        "recommandée. En l'absence de sauvegarde demandée par le client, aucune réclamation "
+        "liée à une perte de données ne pourra être acceptée."
     ),
     "tarifs": (
-        "Le forfait de réparation en atelier est fixé à 63 € TTC. "
-        "En cas de panne matérielle nécessitant le remplacement de pièces, le client sera "
-        "contacté et informé du coût des réparations. Aucune intervention ne sera réalisée "
-        "sans son accord préalable."
+        "Les réparations sont facturées en fonction du temps d'intervention. "
+        "Une intervention inférieure à 10 minutes est facturée 10 €, une intervention "
+        "inférieure à 30 minutes est facturée 30 €, et toute intervention supérieure à "
+        "30 minutes est facturée 63 €. Les réparations sur matériel Apple ainsi que les "
+        "réparations urgentes avec prise en charge sous 24 heures sont facturées 89 €. "
+        "Toute intervention commencée est due."
     ),
-    "reglement": (
-        "Le règlement s'effectue au moment de la restitution du matériel, directement en boutique."
+    "devis": (
+        "Le diagnostic initial est gratuit uniquement dans le cadre d'une récupération de "
+        "données. Pour les autres prestations, un devis peut être proposé et est facturé "
+        "15 €. Ce montant est déduit si le devis est accepté par le client. En cas de "
+        "refus, le devis reste dû."
+    ),
+    "recuperation": (
+        "La récupération de données est facturée 63 € lorsque le support est sain et 79 € "
+        "lorsque le support est défectueux. Dans ce dernier cas, la prestation est payable "
+        "à l'avance. Aucune garantie de résultat ne peut être apportée."
+    ),
+    "imprimantes": (
+        "Le nettoyage d'imprimante est facturé 45 € et est payable à l'avance. Cette "
+        "prestation est réalisée sans garantie de résultat. Les cartouches nécessaires au "
+        "nettoyage sont fournies par Dclic Informatique et facturées en supplément si "
+        "nécessaire."
+    ),
+    "montage": (
+        "Le montage d'un PC acheté chez Dclic Informatique est gratuit. Le dépannage d'un "
+        "PC monté par Dclic Informatique est offert pendant une durée d'un an à compter de "
+        "la date d'achat, hors casse, mauvaise utilisation ou problème indépendant du "
+        "montage. Le montage d'un ordinateur avec des pièces fournies par le client est "
+        "facturé 63 €."
+    ),
+    "domicile": (
+        "Les interventions à domicile sont facturées 69 € par heure, avec une première "
+        "heure indivisible. Le déplacement est gratuit sur Uzerche, puis facturé 1 € par "
+        "kilomètre au-delà."
+    ),
+    "delais": (
+        "Les délais de réparation sont donnés à titre indicatif et dépendent de la charge "
+        "de travail ainsi que de la disponibilité des pièces. Aucun dédommagement ne pourra "
+        "être demandé en cas de retard."
     ),
     "garantie": (
-        "Les réparations sont garanties :\n"
-        "• 3 mois pour la main-d'œuvre\n"
-        "• 1 an pour les pièces remplacées (sauf indication contraire sur la facture)\n"
-        "La garantie s'applique uniquement à la même panne et ne couvre pas automatiquement "
-        "des symptômes similaires. La garantie ne couvre pas les dommages résultant d'une "
-        "mauvaise utilisation, d'un choc, d'une surtension ou d'une intervention extérieure."
+        "La garantie couvre uniquement l'intervention réalisée. Elle ne s'applique pas en "
+        "cas de nouvelle panne, de mauvaise utilisation, d'usure normale ou de défaut "
+        "matériel indépendant."
     ),
     "abandon": (
-        "Tout appareil non récupéré dans un délai de 6 mois et 1 jour sera considéré comme "
-        "abandonné. Le client sera contacté au préalable. En l'absence de réponse, Dclic "
-        "Informatique se réserve le droit de disposer librement du matériel. "
-        "Une proposition de reprise du matériel peut être faite au client avant la sortie "
-        "de l'appareil des locaux. Le règlement s'effectuera alors exclusivement par chèque, "
-        "sur présentation d'un justificatif d'identité et de domicile."
+        "En l'absence de récupération du matériel dans un délai de 1 an à compter de la "
+        "date de dépôt, et après au moins une tentative de contact restée sans réponse, "
+        "le matériel pourra être considéré comme abandonné conformément aux dispositions "
+        "du Code civil. Dclic Informatique se réserve alors le droit d'en disposer "
+        "librement, notamment en vue de sa destruction ou de sa revente, sans indemnisation."
     ),
-    "contestations": (
-        "En confiant son matériel à Dclic Informatique, le client reconnaît avoir pris "
-        "connaissance et accepté les présentes conditions. En cas de litige, seul le "
-        "Tribunal de Commerce de Brive-La-Gaillarde sera compétent."
+    "paiement": (
+        "Le paiement est exigible à la restitution du matériel. Certaines prestations "
+        "peuvent être demandées à l'avance, notamment celles sans garantie de résultat."
+    ),
+    "acceptation": (
+        "Le client reconnaît avoir pris connaissance des présentes conditions, accepter "
+        "les tarifs appliqués et rester responsable de ses données. "
+        "Lu et approuvé, bon pour accord."
     ),
     "donnees_personnelles": (
         "Les informations collectées sont nécessaires à la gestion des réparations et à la "
@@ -662,22 +687,32 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     
     # Conditions de réparation
     elements.append(Paragraph("<b>CONDITIONS DE RÉPARATION</b>", section_style))
-    elements.append(Paragraph("<b>Prise en charge du matériel:</b>", condition_title))
+    elements.append(Paragraph("<b>Prise en charge du matériel :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["prise_en_charge"], condition_text))
-    elements.append(Paragraph("<b>Délais:</b>", condition_title))
-    elements.append(Paragraph(CONDITIONS_REPARATION["delais"], condition_text))
-    elements.append(Paragraph("<b>Devis:</b>", condition_title))
-    elements.append(Paragraph(CONDITIONS_REPARATION["devis"], condition_text))
-    elements.append(Paragraph("<b>Tarifs:</b>", condition_title))
+    elements.append(Paragraph("<b>Données et sauvegarde :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["donnees"], condition_text))
+    elements.append(Paragraph("<b>Tarifs des réparations :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["tarifs"], condition_text))
-    elements.append(Paragraph("<b>Règlement:</b>", condition_title))
-    elements.append(Paragraph(CONDITIONS_REPARATION["reglement"], condition_text))
-    elements.append(Paragraph("<b>Garantie:</b>", condition_title))
+    elements.append(Paragraph("<b>Devis et diagnostic :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["devis"], condition_text))
+    elements.append(Paragraph("<b>Récupération de données :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["recuperation"], condition_text))
+    elements.append(Paragraph("<b>Imprimantes :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["imprimantes"], condition_text))
+    elements.append(Paragraph("<b>Montage et matériel Dclic :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["montage"], condition_text))
+    elements.append(Paragraph("<b>Intervention à domicile :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["domicile"], condition_text))
+    elements.append(Paragraph("<b>Délais :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["delais"], condition_text))
+    elements.append(Paragraph("<b>Garantie :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["garantie"], condition_text))
-    elements.append(Paragraph("<b>Abandon:</b>", condition_title))
+    elements.append(Paragraph("<b>Abandon du matériel :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["abandon"], condition_text))
-    elements.append(Paragraph("<b>Contestations:</b>", condition_title))
-    elements.append(Paragraph(CONDITIONS_REPARATION["contestations"], condition_text))
+    elements.append(Paragraph("<b>Paiement :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["paiement"], condition_text))
+    elements.append(Paragraph("<b>Acceptation :</b>", condition_title))
+    elements.append(Paragraph(CONDITIONS_REPARATION["acceptation"], condition_text))
     
     elements.append(Spacer(1, 15))
     # Bloc signature
