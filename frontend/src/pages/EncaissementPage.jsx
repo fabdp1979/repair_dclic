@@ -19,13 +19,21 @@ import { toast } from "sonner";
 
 // Types de recette EXACTS demandés par le client
 const TYPES_RECETTE = [
-  { value: "forfait_63", label: "Forfait réparation 63€", ttc: 63, ht: 52.50 },
-  { value: "rapide_30", label: "Réparation rapide 30€", ttc: 30, ht: 25.00 },
-  { value: "express_10", label: "Réparation express 10€", ttc: 10, ht: 8.33 },
+  { value: "express_10", label: "Réparation express (<10min) 10€", ttc: 10, ht: 8.33 },
+  { value: "rapide_30", label: "Réparation rapide (<30min) 30€", ttc: 30, ht: 25.00 },
+  { value: "standard_63", label: "Réparation standard (>30min) 63€", ttc: 63, ht: 52.50 },
+  { value: "urgence_89", label: "Forfait urgence (24h) 89€", ttc: 89, ht: 74.17 },
+  { value: "apple_89", label: "Forfait Apple 89€", ttc: 89, ht: 74.17 },
+  { value: "imprimante_45", label: "Forfait imprimante 45€", ttc: 45, ht: 37.50 },
+  { value: "recup_sain_63", label: "Récup. données (sain) 63€", ttc: 63, ht: 52.50 },
+  { value: "recup_defectueux_79", label: "Récup. données (défectueux) 79€", ttc: 79, ht: 65.83 },
+  { value: "sauvegarde_10", label: "Option sauvegarde 10€", ttc: 10, ht: 8.33 },
   { value: "devis_15", label: "Devis 15€", ttc: 15, ht: 12.50 },
   { value: "ventes", label: "Ventes", ttc: null, ht: null },
   { value: "autre", label: "Autre", ttc: null, ht: null },
   { value: "mixte", label: "Mixte (plusieurs lignes)", ttc: null, ht: null },
+  // Legacy
+  { value: "forfait_63", label: "Réparation standard 63€ (ancien)", ttc: 63, ht: 52.50 },
 ];
 
 const MODES_PAIEMENT = [
@@ -39,8 +47,7 @@ const getTypeLabel = (value) => TYPES_RECETTE.find((t) => t.value === value)?.la
 const getModeLabel = (value) => MODES_PAIEMENT.find((m) => m.value === value)?.label || value;
 
 const emptyEntry = {
-  // Lignes : 1 par défaut, plusieurs possibles
-  lignes: [{ type_recette: "forfait_63", montant_ttc: "63", description: "" }],
+  lignes: [{ type_recette: "standard_63", montant_ttc: "63", description: "" }],
   paiements: [{ mode: "especes", montant: "" }],
   client_id: "",
   reference: "",

@@ -207,8 +207,10 @@ class ReparationBase(BaseModel):
     # Matériel fourni (cases à cocher)
     materiel_fourni: Optional[Dict[str, bool]] = None
     autre_materiel: Optional[str] = None
-    # Option urgente
-    urgence: Optional[bool] = False
+    # Forfaits & options (cases à cocher — tarif 2026)
+    # Clés possibles : express_10, rapide_30, standard_63, urgence_89, apple_89,
+    # imprimante_45, recup_sain_63, recup_defectueux_79, sauvegarde_10, devis_15
+    forfaits: Optional[List[str]] = None
     # Technique
     mot_de_passe: Optional[str] = None
     description_panne: str
@@ -233,7 +235,7 @@ class ReparationUpdate(BaseModel):
     client_id: Optional[str] = None
     materiel_fourni: Optional[Dict[str, bool]] = None
     autre_materiel: Optional[str] = None
-    urgence: Optional[bool] = None
+    forfaits: Optional[List[str]] = None
     mot_de_passe: Optional[str] = None
     description_panne: Optional[str] = None
     observations_client: Optional[str] = None
@@ -261,7 +263,8 @@ class Reparation(BaseModel):
     # New fields
     materiel_fourni: Optional[Dict[str, bool]] = None
     autre_materiel: Optional[str] = None
-    urgence: Optional[bool] = False
+    forfaits: Optional[List[str]] = None
+    urgence: Optional[bool] = False  # legacy, déduit de forfaits contenant "urgence_89"
     mot_de_passe: Optional[str] = None
     description_panne: Optional[str] = None
     observations_client: Optional[str] = None
@@ -340,15 +343,45 @@ class CaisseEntry(CaisseEntryBase):
     date: str
 
 # Encaissement Models (entrées uniquement)
-# Types: forfait_63, rapide_30, express_10, devis_15, ventes, autre
+# Types correspondant aux forfaits du tarif 2026
 TYPES_RECETTE = {
-    "forfait_63": {"label": "Forfait réparation", "ttc": 63.0, "ht": 52.50},
+    "standard_63": {"label": "Réparation standard", "ttc": 63.0, "ht": 52.50},
     "rapide_30": {"label": "Réparation rapide", "ttc": 30.0, "ht": 25.0},
     "express_10": {"label": "Réparation express", "ttc": 10.0, "ht": 8.33},
+    "urgence_89": {"label": "Forfait urgence (24h)", "ttc": 89.0, "ht": 74.17},
+    "apple_89": {"label": "Forfait Apple", "ttc": 89.0, "ht": 74.17},
+    "imprimante_45": {"label": "Forfait imprimante", "ttc": 45.0, "ht": 37.50},
+    "recup_sain_63": {"label": "Récup. données (support sain)", "ttc": 63.0, "ht": 52.50},
+    "recup_defectueux_79": {"label": "Récup. données (support défectueux)", "ttc": 79.0, "ht": 65.83},
+    "sauvegarde_10": {"label": "Option sauvegarde", "ttc": 10.0, "ht": 8.33},
     "devis_15": {"label": "Devis", "ttc": 15.0, "ht": 12.50},
     "ventes": {"label": "Ventes", "ttc": None, "ht": None},
-    "autre": {"label": "Autre", "ttc": None, "ht": None}
+    "autre": {"label": "Autre", "ttc": None, "ht": None},
+    "mixte": {"label": "Mixte (plusieurs lignes)", "ttc": None, "ht": None},
+    # Legacy
+    "forfait_63": {"label": "Réparation standard", "ttc": 63.0, "ht": 52.50},
 }
+
+# Catalogue des forfaits applicables sur une fiche réparation
+FORFAITS_CATALOG = [
+    {"key": "express_10", "label": "Réparation express (<10 min)", "prix": 10.0},
+    {"key": "rapide_30", "label": "Réparation rapide (<30 min)", "prix": 30.0},
+    {"key": "standard_63", "label": "Réparation standard (>30 min)", "prix": 63.0},
+    {"key": "urgence_89", "label": "Forfait urgence (dépannage 24h)", "prix": 89.0},
+    {"key": "apple_89", "label": "Forfait Apple", "prix": 89.0},
+    {"key": "imprimante_45", "label": "Forfait nettoyage imprimante", "prix": 45.0},
+    {"key": "recup_sain_63", "label": "Récupération données — support sain", "prix": 63.0},
+    {"key": "recup_defectueux_79", "label": "Récupération données — support défectueux", "prix": 79.0},
+    {"key": "sauvegarde_10", "label": "Option sauvegarde", "prix": 10.0},
+    {"key": "devis_15", "label": "Devis (offert si réparation acceptée)", "prix": 15.0},
+]
+FORFAIT_LABELS = {f["key"]: f["label"] for f in FORFAITS_CATALOG}
+
+def format_forfaits_list(forfaits_keys: Optional[List[str]]) -> List[str]:
+    """Transforme une liste de clés en labels lisibles."""
+    if not forfaits_keys:
+        return []
+    return [FORFAIT_LABELS.get(k, k) for k in forfaits_keys]
 
 class PaiementDetail(BaseModel):
     mode: str  # especes, cb, cheque, virement
@@ -559,6 +592,13 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     if materiel_list:
         elements.append(Paragraph("<b>MATÉRIEL FOURNI</b>", section_style))
         elements.append(Paragraph(", ".join(materiel_list), normal_style))
+        elements.append(Spacer(1, 10))
+
+    # Forfaits appliqués
+    forfaits_labels = format_forfaits_list(reparation.get('forfaits'))
+    if forfaits_labels:
+        elements.append(Paragraph("<b>FORFAITS / OPTIONS</b>", section_style))
+        elements.append(Paragraph(", ".join(forfaits_labels), normal_style))
         elements.append(Spacer(1, 10))
 
     # État du matériel à la prise en charge (protection juridique)
@@ -920,7 +960,14 @@ def generate_internal_pdf(reparation: dict, client: dict) -> bytes:
         elements.append(Paragraph("<b>MATÉRIEL FOURNI</b>", section_style))
         elements.append(Paragraph(", ".join(materiel_list), normal_style))
         elements.append(Spacer(1, 10))
-    
+
+    # Forfaits appliqués
+    forfaits_labels = format_forfaits_list(reparation.get('forfaits'))
+    if forfaits_labels:
+        elements.append(Paragraph("<b>FORFAITS / OPTIONS</b>", section_style))
+        elements.append(Paragraph(", ".join(forfaits_labels), normal_style))
+        elements.append(Spacer(1, 10))
+
     # MOT DE PASSE (visible only on internal) + N° série
     elements.append(Paragraph("<b>INFORMATIONS TECHNIQUES</b>", section_style))
     tech_data = [
@@ -1168,7 +1215,8 @@ async def create_reparation(reparation: ReparationCreate):
         "client_id": reparation.client_id,
         "materiel_fourni": reparation.materiel_fourni or {},
         "autre_materiel": reparation.autre_materiel,
-        "urgence": reparation.urgence or False,
+        "forfaits": reparation.forfaits or [],
+        "urgence": "urgence_89" in (reparation.forfaits or []),
         "mot_de_passe": reparation.mot_de_passe,
         "description_panne": reparation.description_panne,
         "observations_client": reparation.observations_client,
@@ -1284,7 +1332,11 @@ async def update_reparation(reparation_id: str, update: ReparationUpdate):
     
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     update_data["date_modification"] = datetime.now(timezone.utc).isoformat()
-    
+
+    # Synchronise le legacy "urgence" avec la présence de "urgence_89" dans forfaits
+    if "forfaits" in update_data:
+        update_data["urgence"] = "urgence_89" in (update_data["forfaits"] or [])
+
     await db.reparations.update_one({"id": reparation_id}, {"$set": update_data})
     
     updated = await db.reparations.find_one({"id": reparation_id}, {"_id": 0})
@@ -1343,6 +1395,7 @@ async def get_reparation_public(reparation_id: str):
         "numero_serie": rep.get("numero_serie", ""),
         "etat_depot": rep.get("etat_depot", ""),
         "urgence": rep.get("urgence", False),
+        "forfaits": rep.get("forfaits", []),
         "signature_b64": rep.get("signature_b64"),
         "date_signature": rep.get("date_signature"),
         "nom_signataire": rep.get("nom_signataire"),
@@ -1433,9 +1486,12 @@ async def encaisser_reparation(reparation_id: str, payload: EncaisserReparationP
     # Type de recette : fourni OU déduit du prix
     type_recette = payload.type_recette
     if not type_recette:
-        if abs(prix - 63) < 0.01: type_recette = "forfait_63"
+        if abs(prix - 63) < 0.01: type_recette = "standard_63"
         elif abs(prix - 30) < 0.01: type_recette = "rapide_30"
         elif abs(prix - 10) < 0.01: type_recette = "express_10"
+        elif abs(prix - 89) < 0.01: type_recette = "urgence_89"
+        elif abs(prix - 45) < 0.01: type_recette = "imprimante_45"
+        elif abs(prix - 79) < 0.01: type_recette = "recup_defectueux_79"
         elif abs(prix - 15) < 0.01: type_recette = "devis_15"
         else: type_recette = "autre"
 

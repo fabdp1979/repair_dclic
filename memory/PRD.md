@@ -131,6 +131,26 @@ Application web de gestion pour vendeur réparateur informatique avec modules co
 - [x] Garantie UNE seule page (bandeau dessiné en canvas via `onFirstPage`, bottomMargin dynamique)
 
 ## Itération 13 — 01 mai 2026 (Encaissement multi-lignes + bouton Encaisser sur réparation)
+- [x] Backend : nouveau modèle `LigneRecette` + champ `lignes` optionnel sur `Encaissement`. Validation : somme des lignes = montant_ttc. type_recette auto = "mixte" si plusieurs catégories.
+- [x] Backend : nouveaux endpoints `POST /api/reparations/{id}/encaisser` et `DELETE .../encaisser` — crée/supprime automatiquement l'encaissement lié, met à jour `encaissement_id`, `date_paiement`, `statut_interne="Réglé"`.
+- [x] Frontend : bouton **"Encaisser"** + dialog (modes multi-paiement) + badge **Réglé** sur la liste.
+- [x] Formulaire Encaissement manuel refondu en **lignes multiples** (multi-produits, ex: Forfait 63 + Ventes 20 en CB).
+
+## Itération 14 — 03 mai 2026 (Refonte grille tarifaire 2026)
+- [x] Suppression de la case à cocher "Option urgence" (booléen)
+- [x] Nouvelle section **"Forfaits & options"** dans le formulaire Réparation avec 10 forfaits cochables :
+  - Réparation express 10€ / rapide 30€ / standard 63€
+  - Forfait urgence 89€ (remplace l'ancien toggle)
+  - Forfait Apple 89€
+  - Forfait nettoyage imprimante 45€
+  - Récup. données sain 63€ / défectueux 79€
+  - Option sauvegarde 10€ / Devis 15€
+- [x] Total forfaits calculé + bouton **"Utiliser comme prix"** pour reporter le total dans le champ prix
+- [x] Backend : nouveau champ `forfaits: List[str]` persisté ; `urgence` (boolean legacy) auto-déduit de la présence de `urgence_89`
+- [x] PDFs client + interne : nouvelle section "FORFAITS / OPTIONS" affichée
+- [x] EncaissementPage : types de recette mis à jour (express_10, rapide_30, standard_63, urgence_89, apple_89, imprimante_45, recup_sain_63, recup_defectueux_79, sauvegarde_10, devis_15) + clé legacy `forfait_63` conservée
+- [x] Auto-déduction du type lors de l'encaissement d'une fiche (63=standard, 89=urgence, 45=imprimante, 79=récup, etc.)
+- **NON INCLUS volontairement** : montage PC / domicile (demande explicite user)
 - [x] Backend : nouveau modèle `LigneRecette` + champ `lignes: List[LigneRecette]` optionnel sur `Encaissement`. Validation : somme des lignes = montant_ttc. type_recette auto = "mixte" si plusieurs catégories.
 - [x] Backend : nouveaux endpoints `POST /api/reparations/{id}/encaisser` et `DELETE .../encaisser` — crée/supprime automatiquement l'encaissement lié, met à jour `encaissement_id`, `date_paiement`, `statut_interne="Réglé"` sur la réparation.
 - [x] Backend : champ `reparation_id` ajouté sur Encaissement pour lien inverse.

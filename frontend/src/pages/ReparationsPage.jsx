@@ -63,11 +63,25 @@ const STATUTS_CLIENT = [
   "Appareil prêt"
 ];
 
+// Catalogue des forfaits (tarif 2026) — mêmes clés côté backend
+const FORFAITS_CATALOG = [
+  { key: "express_10", label: "Réparation express (<10 min)", prix: 10 },
+  { key: "rapide_30", label: "Réparation rapide (<30 min)", prix: 30 },
+  { key: "standard_63", label: "Réparation standard (>30 min)", prix: 63 },
+  { key: "urgence_89", label: "Forfait urgence (dépannage 24h)", prix: 89 },
+  { key: "apple_89", label: "Forfait Apple", prix: 89 },
+  { key: "imprimante_45", label: "Forfait nettoyage imprimante", prix: 45 },
+  { key: "recup_sain_63", label: "Récupération données — support sain", prix: 63 },
+  { key: "recup_defectueux_79", label: "Récupération données — support défectueux", prix: 79 },
+  { key: "sauvegarde_10", label: "Option sauvegarde", prix: 10 },
+  { key: "devis_15", label: "Devis (offert si réparation acceptée)", prix: 15 },
+];
+
 const emptyReparation = {
   client_id: "",
   materiel_fourni: {},
   autre_materiel: "",
-  urgence: false,
+  forfaits: [],
   mot_de_passe: "",
   description_panne: "",
   observations_client: "",
@@ -167,7 +181,7 @@ export default function ReparationsPage() {
         client_id: reparation.client_id,
         materiel_fourni: reparation.materiel_fourni || {},
         autre_materiel: reparation.autre_materiel || "",
-        urgence: reparation.urgence || false,
+        forfaits: reparation.forfaits || (reparation.urgence ? ["urgence_89"] : []),
         mot_de_passe: reparation.mot_de_passe || "",
         description_panne: reparation.description_panne || "",
         observations_client: reparation.observations_client || "",
@@ -696,25 +710,64 @@ export default function ReparationsPage() {
                 </div>
               </div>
 
-              {/* Bloc Urgence */}
+              {/* Bloc Forfaits & Options */}
               <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                 <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   <span className="w-6 h-6 bg-[#84CC16] text-white rounded-full flex items-center justify-center text-xs">3</span>
-                  Option urgence
+                  Forfaits & options
                 </h3>
-                <div className="flex items-start space-x-3">
-                  <Checkbox
-                    id="urgence"
-                    checked={formData.urgence}
-                    onCheckedChange={(checked) => setFormData({...formData, urgence: checked})}
-                  />
-                  <div>
-                    <Label htmlFor="urgence" className="cursor-pointer font-medium text-red-600">
-                      Réparation urgente (+25€)
-                    </Label>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Réparation prioritaire sur les autres réparations en cours
-                    </p>
+                <p className="text-xs text-slate-500 mb-3">
+                  Sélectionnez les forfaits et options appliqués sur cette réparation. Le prix total reste à saisir manuellement plus bas.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {FORFAITS_CATALOG.map((f) => {
+                    const checked = formData.forfaits?.includes(f.key) || false;
+                    return (
+                      <div key={f.key} className="flex items-start gap-2 bg-white border border-slate-200 rounded p-2">
+                        <Checkbox
+                          id={`forfait-${f.key}`}
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const current = formData.forfaits || [];
+                            const next = v
+                              ? [...current, f.key]
+                              : current.filter((k) => k !== f.key);
+                            setFormData({ ...formData, forfaits: next });
+                          }}
+                          data-testid={`forfait-checkbox-${f.key}`}
+                        />
+                        <Label htmlFor={`forfait-${f.key}`} className="cursor-pointer flex-1 text-sm">
+                          <div className="font-medium text-slate-900">{f.label}</div>
+                          <div className="text-xs text-[#84CC16] font-semibold">
+                            {f.prix.toFixed(2)} €
+                          </div>
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 text-sm text-slate-700 border-t border-slate-200 pt-2 flex justify-between items-center">
+                  <span>Total forfaits sélectionnés :</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#84CC16]" data-testid="forfaits-total">
+                      {(formData.forfaits || [])
+                        .reduce((s, k) => s + (FORFAITS_CATALOG.find((f) => f.key === k)?.prix || 0), 0)
+                        .toFixed(2)} €
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const total = (formData.forfaits || [])
+                          .reduce((s, k) => s + (FORFAITS_CATALOG.find((f) => f.key === k)?.prix || 0), 0);
+                        setFormData({ ...formData, prix: total ? total.toFixed(2) : "" });
+                      }}
+                      disabled={!(formData.forfaits || []).length}
+                      data-testid="use-forfait-total-btn"
+                    >
+                      Utiliser comme prix
+                    </Button>
                   </div>
                 </div>
               </div>
