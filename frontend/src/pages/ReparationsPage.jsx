@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { 
   Search, Plus, Edit, Trash2, FileText, Send, CheckCircle,
   Wrench, Download, Clock, AlertTriangle, Link as LinkIcon, QrCode,
-  UserPlus, PenLine, Euro
+  UserPlus, PenLine, Euro, Tag
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -15,6 +15,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "../components/ui/dialog";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
@@ -24,7 +27,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getReparations, createReparation, updateReparation, deleteReparation,
-  getClients, createClient, getClientPdfUrl, getInternalPdfUrl, getCompteRenduPdfUrl,
+  getClients, createClient, getClientPdfUrl, getInternalPdfUrl, getCompteRenduPdfUrl, getEtiquettePdfUrl,
   sendRepairEmail, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
 import { formatDateFR } from "../lib/date";
@@ -572,6 +575,37 @@ export default function ReparationsPage() {
                         <FileText className="w-4 h-4 mr-1" />
                         Interne
                       </Button>
+
+                      {/* Étiquette imprimable (Dymo / Brother QL) */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            data-testid={`etiquette-btn-${reparation.id}`}
+                            title="Imprimer une étiquette 62×29 mm"
+                          >
+                            <Tag className="w-4 h-4 mr-1" />
+                            Étiquette
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-white">
+                          <DropdownMenuItem
+                            onClick={() => window.open(getEtiquettePdfUrl(reparation.id, 1), '_blank')}
+                            data-testid={`etiquette-1-${reparation.id}`}
+                          >
+                            <Tag className="w-4 h-4 mr-2" />
+                            1 étiquette
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => window.open(getEtiquettePdfUrl(reparation.id, 2), '_blank')}
+                            data-testid={`etiquette-2-${reparation.id}`}
+                          >
+                            <Tag className="w-4 h-4 mr-2" />
+                            2 étiquettes (PC + chargeur)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
                       <Button
                         variant="outline"

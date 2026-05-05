@@ -513,6 +513,125 @@ def generate_qr_code(data: str) -> bytes:
     buffer.seek(0)
     return buffer.getvalue()
 
+
+def generate_etiquette_pdf(reparation: dict, client: dict, count: int = 1) -> bytes:
+    """Étiquette imprimable 62×29 mm (Dymo LabelWriter / Brother QL).
+    Layout :
+      - QR code à gauche (~20×20 mm) — fallback : pas de QR si génération échoue
+      - À droite : numéro réparation (gras), nom client, type matériel
+      - Bas : date de dépôt en petit
+    `count` permet d'imprimer plusieurs étiquettes identiques (PC + chargeur).
+    """
+    from reportlab.lib.pagesizes import landscape
+    from reportlab.pdfgen import canvas as _canvas
+
+    LABEL_W = 62 * mm
+    LABEL_H = 29 * mm
+    MARGIN = 1 * mm  # marge de sécurité d'impression
+
+    # Données
+    numero = reparation.get("numero", "REP-XXXX")
+    tracking_id = reparation.get("tracking_id") or reparation.get("id", "")
+    client_name = f"{client.get('prenom', '') or ''} {client.get('nom', '') or ''}".strip() or "Client"
+
+    materiel_list = get_materiel_fourni_list(
+        reparation.get("materiel_fourni", {}),
+        reparation.get("autre_materiel"),
+    )
+    materiel_str = ", ".join(materiel_list[:2]) if materiel_list else "Matériel"
+    if len(materiel_str) > 28:
+        materiel_str = materiel_str[:27] + "…"
+
+    date_depot = _fr_date(reparation.get("date_creation"))
+
+    # URL de tracking pour le QR
+    base_url = COMPANY_INFO.get("frontend_url") or os.environ.get("FRONTEND_URL", "")
+    qr_url = f"{base_url.rstrip('/')}/suivi/{tracking_id}" if base_url else f"/suivi/{tracking_id}"
+
+    # QR code (avec fallback silencieux)
+    qr_buf = None
+    try:
+        qr = qrcode.QRCode(version=None, box_size=10, border=1, error_correction=qrcode.constants.ERROR_CORRECT_M)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        qr_buf = io.BytesIO()
+        qr_img.save(qr_buf, format="PNG")
+        qr_buf.seek(0)
+    except Exception as exc:
+        logger.error(f"QR generation failed for label: {exc}")
+        qr_buf = None
+
+    # Génération PDF — autant de pages que de copies demandées
+    buffer = io.BytesIO()
+    c = _canvas.Canvas(buffer, pagesize=(LABEL_W, LABEL_H))
+
+    for _ in range(max(1, min(count, 10))):
+        # Pas de fond, pas de bordure (impression thermique noir/blanc)
+        # === QR code à gauche
+        qr_size = 20 * mm
+        qr_x = MARGIN
+        qr_y = (LABEL_H - qr_size) / 2  # vertical center
+        if qr_buf:
+            qr_buf.seek(0)
+            try:
+                c.drawImage(
+                    ImageReader(qr_buf),
+                    qr_x, qr_y,
+                    width=qr_size, height=qr_size,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+            except Exception as exc:
+                logger.error(f"drawImage QR failed: {exc}")
+                qr_buf = None  # fallback : on n'essaye plus pour les copies suivantes
+
+        # === Bloc texte à droite
+        text_x = MARGIN + qr_size + 2 * mm
+        # Largeur dispo pour le texte (reste de l'étiquette)
+        text_w = LABEL_W - text_x - MARGIN
+
+        def _fit_text(txt: str, font: str, max_w: float, max_size: float, min_size: float = 5.0) -> float:
+            size = max_size
+            while size > min_size:
+                if c.stringWidth(txt, font, size) <= max_w:
+                    return size
+                size -= 0.5
+            return min_size
+
+        # Ligne 1 — Numéro de fiche (gras)
+        size1 = _fit_text(numero, "Helvetica-Bold", text_w, 11.5, 7.0)
+        y1 = LABEL_H - MARGIN - size1
+        c.setFont("Helvetica-Bold", size1)
+        c.drawString(text_x, y1, numero)
+
+        # Ligne 2 — Nom client
+        size2 = _fit_text(client_name, "Helvetica", text_w, 9.5, 6.0)
+        y2 = y1 - (size2 + 1.5)
+        c.setFont("Helvetica", size2)
+        c.drawString(text_x, y2, client_name)
+
+        # Ligne 3 — Matériel
+        size3 = _fit_text(materiel_str, "Helvetica", text_w, 8.5, 5.5)
+        y3 = y2 - (size3 + 1)
+        c.setFont("Helvetica", size3)
+        c.drawString(text_x, y3, materiel_str)
+
+        # Ligne 4 — Date de dépôt en petit en bas
+        if date_depot:
+            date_label = f"Dépôt : {date_depot}"
+            size_date = _fit_text(date_label, "Helvetica-Oblique", text_w, 7.0, 5.0)
+            c.setFont("Helvetica-Oblique", size_date)
+            c.setFillGray(0.25)
+            c.drawString(text_x, MARGIN, date_label)
+            c.setFillGray(0)
+
+        c.showPage()
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
 def get_materiel_fourni_list(materiel: Dict[str, bool], autre: str = None) -> List[str]:
     """Convert materiel dict to readable list"""
     labels = {
@@ -2005,6 +2124,26 @@ async def get_qrcode(reparation_id: str):
         content=qr_bytes,
         media_type="image/png",
         headers={"Content-Disposition": f'inline; filename="qr_{rep["numero"]}.png"'}
+    )
+
+
+@api_router.get("/reparations/{reparation_id}/pdf/etiquette")
+async def get_etiquette_pdf(reparation_id: str, count: int = Query(1, ge=1, le=10)):
+    """Étiquette imprimable 62×29 mm (Dymo / Brother QL).
+    `count` permet d'imprimer 1 à 10 étiquettes identiques (ex: PC + chargeur)."""
+    rep = await db.reparations.find_one({"id": reparation_id}, {"_id": 0})
+    if not rep:
+        raise HTTPException(status_code=404, detail="Réparation non trouvée")
+
+    client = await db.clients.find_one({"id": rep["client_id"]}, {"_id": 0}) or {}
+
+    pdf_content = generate_etiquette_pdf(rep, client, count=count)
+    filename = sanitize_filename(f"Etiquette_{rep.get('numero', 'rep')}.pdf")
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
 
 # ===================== EMAIL =====================

@@ -59,6 +59,9 @@ export const getInternalPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/inte
 
 export const getCompteRenduPdfUrl = (id) => `${API_BASE}/reparations/${id}/pdf/compte-rendu`;
 
+export const getEtiquettePdfUrl = (id, count = 1) =>
+  `${API_BASE}/reparations/${id}/pdf/etiquette?count=${count}`;
+
 export const getQrCodeUrl = (id) => `${API_BASE}/reparations/${id}/qrcode`;
 
 // Bannière publicitaire (compte-rendu)
