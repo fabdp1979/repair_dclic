@@ -544,9 +544,12 @@ def generate_etiquette_pdf(reparation: dict, client: dict, count: int = 1) -> by
 
     date_depot = _fr_date(reparation.get("date_creation"))
 
-    # URL de tracking pour le QR
-    base_url = COMPANY_INFO.get("frontend_url") or os.environ.get("FRONTEND_URL", "")
-    qr_url = f"{base_url.rstrip('/')}/suivi/{tracking_id}" if base_url else f"/suivi/{tracking_id}"
+    # URL de tracking pour le QR — utilise la même logique que les autres endpoints PDF
+    frontend_url = os.environ.get(
+        "FRONTEND_URL",
+        "https://fiche-repair.preview.emergentagent.com"
+    )
+    qr_url = f"{frontend_url.rstrip('/')}/suivi/{tracking_id}"
 
     # QR code (avec fallback silencieux)
     qr_buf = None
