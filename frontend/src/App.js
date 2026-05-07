@@ -13,6 +13,7 @@ import { isForcedIpadPath } from "./hooks/useDeviceMode";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import SetupPage from "./pages/SetupPage";
 
 // Pages PC (admin — protected)
 import Dashboard from "./pages/Dashboard";
@@ -32,8 +33,8 @@ import PrivacyPolicyPage from "./pages-ipad/PrivacyPolicyPage";
 
 function LayoutSelector({ children }) {
   const location = useLocation();
-  // Le login a son propre layout (pas de PC sidebar non plus)
-  if (location.pathname === "/login") return children;
+  // Le login & setup ont leur propre layout (pas de sidebar PC)
+  if (location.pathname === "/login" || location.pathname === "/setup") return children;
   if (isForcedIpadPath(location.pathname) || location.pathname === "/confidentialite") {
     return <IpadMode>{children}</IpadMode>;
   }
@@ -48,6 +49,7 @@ function App() {
         <LayoutSelector>
           <Routes>
             {/* Auth */}
+            <Route path="/setup" element={<SetupPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* PC admin (protégé) */}

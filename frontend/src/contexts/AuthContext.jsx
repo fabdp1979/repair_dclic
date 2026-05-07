@@ -84,6 +84,15 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  // Auto-login après création du tout premier admin (setup initial)
+  const setupSession = useCallback((data) => {
+    localStorage.setItem(STORAGE_TOKEN, data.access_token);
+    localStorage.setItem(STORAGE_USER, JSON.stringify(data.user));
+    setToken(data.access_token);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
@@ -93,7 +102,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, setupSession, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

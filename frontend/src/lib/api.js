@@ -200,4 +200,9 @@ export const downloadFile = async (url, filename) => {
   window.URL.revokeObjectURL(blobUrl);
 };
 
+// Setup initial (premier démarrage VPS)
+export const checkSetupRequired = () => api.get('/auth/setup-required');
+export const setupAdmin = (data) => api.post('/auth/setup', data);
+
+
 export default api;

@@ -1858,6 +1858,56 @@ async def change_password(payload: ChangePasswordInput, user: dict = Depends(get
     )
     return {"ok": True, "message": "Mot de passe mis à jour"}
 
+
+class SetupAdminInput(BaseModel):
+    email: EmailStr
+    password: str
+    name: Optional[str] = None
+
+
+@api_router.get("/auth/setup-required")
+async def setup_required():
+    """Indique si l'application a besoin du flow d'installation initial.
+    Renvoie {required: true} tant qu'aucun compte admin n'existe en base.
+    Endpoint public — utilisé par la page de connexion pour rediriger.
+    """
+    count = await db.users.count_documents({})
+    return {"required": count == 0}
+
+
+@api_router.post("/auth/setup")
+async def setup_admin(payload: SetupAdminInput):
+    """Crée le tout premier compte administrateur — accessible UNIQUEMENT
+    s'il n'existe encore aucun utilisateur. Devient inutilisable dès qu'un
+    compte existe (sécurité)."""
+    count = await db.users.count_documents({})
+    if count > 0:
+        raise HTTPException(
+            status_code=403,
+            detail="Un compte administrateur existe déjà. Cet endpoint n'est plus disponible.",
+        )
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+
+    email = payload.email.strip().lower()
+    user_doc = {
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "name": payload.name or "Administrateur",
+        "password_hash": _hash_password(payload.password),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.users.insert_one(user_doc)
+
+    # Auto-login après setup
+    token = _create_access_token(user_doc["id"], user_doc["email"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user_doc["id"], "email": user_doc["email"], "name": user_doc["name"]},
+    }
+
+
 # ===================== PRIVACY POLICY =====================
 
 @api_router.get("/privacy-policy")

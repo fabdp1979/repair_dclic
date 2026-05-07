@@ -45,27 +45,25 @@ echo ""
 read -rp "🌐 Nom de domaine (ex: reparation-monatelier.fr) : " DOMAIN
 [ -z "$DOMAIN" ] && { err "Domaine requis"; exit 1; }
 
-read -rp "📧 Email admin (login de l'app) : " ADMIN_EMAIL
-[ -z "$ADMIN_EMAIL" ] && { err "Email requis"; exit 1; }
-
-read -rsp "🔑 Mot de passe admin (mini 8 caractères) : " ADMIN_PASSWORD
-echo ""
-[ ${#ADMIN_PASSWORD} -lt 8 ] && { err "Mot de passe trop court"; exit 1; }
-
 read -rp "📬 Clé API Resend (commence par 're_', laissez vide si plus tard) : " RESEND_API_KEY
 
 read -rp "📦 URL du dépôt GitHub (ex: https://github.com/compte/repo.git) : " GIT_REPO
 [ -z "$GIT_REPO" ] && { err "URL GitHub requise"; exit 1; }
 
 read -rp "📧 Email Let's Encrypt pour HTTPS (certif SSL gratuit) : " LE_EMAIL
-[ -z "$LE_EMAIL" ] && LE_EMAIL="$ADMIN_EMAIL"
+[ -z "$LE_EMAIL" ] && LE_EMAIL="admin@$DOMAIN"
+
+read -rp "📨 Email expéditeur des notifications (laissez vide pour utiliser '$LE_EMAIL') : " SENDER_EMAIL
+[ -z "$SENDER_EMAIL" ] && SENDER_EMAIL="$LE_EMAIL"
 
 echo ""
 say "Récapitulatif :"
 echo "   Domaine     : $DOMAIN"
-echo "   Admin email : $ADMIN_EMAIL"
 echo "   Dépôt       : $GIT_REPO"
 echo "   Resend      : $([ -z "$RESEND_API_KEY" ] && echo "(vide)" || echo "fournie")"
+echo ""
+warn "Le compte administrateur sera créé directement depuis le navigateur,"
+warn "lors du premier accès à l'application — aucun mot de passe ici."
 echo ""
 read -rp "Continuer l'installation ? [o/N] : " CONFIRM
 [[ ! "$CONFIRM" =~ ^[oOyY]$ ]] && { warn "Installation annulée."; exit 0; }
@@ -149,10 +147,8 @@ cat > "$APP_DIR/backend/.env" <<EOF
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=dclic_production
 JWT_SECRET=$JWT_SECRET
-ADMIN_EMAIL=$ADMIN_EMAIL
-ADMIN_PASSWORD=$ADMIN_PASSWORD
 RESEND_API_KEY=$RESEND_API_KEY
-SENDER_EMAIL=$ADMIN_EMAIL
+SENDER_EMAIL=$SENDER_EMAIL
 FRONTEND_URL=https://$DOMAIN
 CORS_ORIGINS=https://$DOMAIN
 EOF
@@ -301,8 +297,10 @@ echo -e "${GREEN}║   ✔  INSTALLATION TERMINÉE                              
 echo -e "${GREEN}╚═══════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo "  🌐 Application : https://$DOMAIN"
-echo "  📧 Login       : $ADMIN_EMAIL"
-echo "  🔑 Mot de passe : (celui saisi au début)"
+echo ""
+echo -e "${YELLOW}  ⚠  Première étape :${NC} ouvrez https://$DOMAIN dans votre navigateur."
+echo "  Vous serez automatiquement redirigé vers une page de configuration"
+echo "  pour créer votre compte administrateur (email + mot de passe)."
 echo ""
 echo "  🔧 Commandes utiles :"
 echo "     • Redémarrer le backend  : supervisorctl restart dclic-backend"
@@ -311,6 +309,4 @@ echo "     • Mettre à jour          : $APP_DIR/update.sh"
 echo "     • Sauvegarder à la main  : $APP_DIR/backup.sh"
 echo ""
 echo "  📚 Documentation complète : $APP_DIR/INSTALLATION.md"
-echo ""
-warn "N'oubliez pas : changez le mot de passe admin depuis l'interface à la 1ère connexion."
 echo ""
