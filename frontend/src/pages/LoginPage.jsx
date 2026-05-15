@@ -1,17 +1,15 @@
 import { useState, useEffect } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Wrench, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { useAuth } from "../contexts/AuthContext";
-import { checkSetupRequired } from "../lib/api";
 import { toast } from "sonner";
 
 export default function LoginPage() {
   const { isAuthenticated, login, loading: authLoading } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,18 +17,17 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
 
-  // Au montage : vérifie s'il faut faire le setup initial
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await checkSetupRequired();
+        const res = await fetch("/api/auth/setup-required");
+        const data = await res.json();
         if (!cancelled && data?.required) {
           navigate("/setup", { replace: true });
           return;
         }
       } catch {
-        // backend down ou pas joignable → on laisse l'écran de login s'afficher
       } finally {
         if (!cancelled) setCheckingSetup(false);
       }
@@ -47,8 +44,7 @@ export default function LoginPage() {
   }
 
   if (isAuthenticated) {
-    const redirectTo = location.state?.from?.pathname || "/";
-    return <Navigate to={redirectTo} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -60,7 +56,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      toast.success("Connexion réussie");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       const msg = err.response?.data?.detail || "Identifiants invalides";
       toast.error(typeof msg === "string" ? msg : "Erreur de connexion");
@@ -79,7 +75,6 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-slate-900">DCLIC INFORMATIQUE</h1>
           <p className="text-slate-500 mt-1">Espace technicien</p>
         </div>
-
         <Card>
           <CardHeader>
             <CardTitle className="font-outfit text-xl">Connexion</CardTitle>
@@ -140,7 +135,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-
         <p className="text-xs text-slate-400 text-center mt-6">
           Espace réservé au personnel DCLIC Informatique
         </p>

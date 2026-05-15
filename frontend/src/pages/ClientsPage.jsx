@@ -110,7 +110,8 @@ export default function ClientsPage() {
     try {
       const dataToSend = {
         ...formData,
-        telephone2: formData.telephone2 || null
+        telephone2: formData.telephone2 || null,
+        email: formData.email || null
       };
       
       if (selectedClient) {

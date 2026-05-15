@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import "@/App.css";
 
@@ -48,12 +48,13 @@ function App() {
         <Toaster position="top-right" richColors />
         <LayoutSelector>
           <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" />} />
             {/* Auth */}
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* PC admin (protégé) */}
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
             <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
             <Route path="/reparations" element={<ProtectedRoute><ReparationsPage /></ProtectedRoute>} />

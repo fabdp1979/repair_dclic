@@ -18,8 +18,9 @@ export default function ProtectedRoute({ children, ipadAllowed = false }) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+// Autoriser setup sans authentification
+if (!isAuthenticated && location.pathname !== "/setup") {
+  return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Sur iPad, restreindre aux routes autorisées (sécurité supplémentaire si Guided Access oublié)
