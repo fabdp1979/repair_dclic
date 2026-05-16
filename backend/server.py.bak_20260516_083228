@@ -685,19 +685,19 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'],
-        fontSize=14, spaceAfter=3, textColor=colors.HexColor('#84CC16'), alignment=1)
+        fontSize=16, spaceAfter=10, textColor=colors.HexColor('#84CC16'), alignment=1)
     header_style = ParagraphStyle('Header', parent=styles['Normal'],
-        fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1)
+        fontSize=9, textColor=colors.HexColor('#64748B'), alignment=1)
     section_style = ParagraphStyle('Section', parent=styles['Heading2'],
-        fontSize=10, spaceBefore=5, spaceAfter=2, textColor=colors.HexColor('#0F172A'))
+        fontSize=11, spaceBefore=12, spaceAfter=6, textColor=colors.HexColor('#0F172A'))
     normal_style = ParagraphStyle('CustomNormal', parent=styles['Normal'],
-        fontSize=8.5, spaceAfter=2)
+        fontSize=9, spaceAfter=3)
     small_style = ParagraphStyle('Small', parent=styles['Normal'],
-        fontSize=6.5, textColor=colors.HexColor('#64748B'), spaceAfter=1)
+        fontSize=7, textColor=colors.HexColor('#64748B'), spaceAfter=2)
     condition_title = ParagraphStyle('ConditionTitle', parent=styles['Normal'],
-        fontSize=7, fontName='Helvetica-Bold', textColor=colors.HexColor('#0F172A'), spaceAfter=1)
+        fontSize=8, fontName='Helvetica-Bold', textColor=colors.HexColor('#0F172A'), spaceAfter=2)
     condition_text = ParagraphStyle('ConditionText', parent=styles['Normal'],
-        fontSize=6.5, textColor=colors.HexColor('#374151'), spaceAfter=2)
+        fontSize=7, textColor=colors.HexColor('#374151'), spaceAfter=4)
     
     elements = []
     
@@ -705,7 +705,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     elements.append(Paragraph(COMPANY_INFO["name"], title_style))
     elements.append(Paragraph(COMPANY_INFO["address"], header_style))
     elements.append(Paragraph(f"Tél: {COMPANY_INFO['phone']} | Email: {COMPANY_INFO['email']}", header_style))
-    elements.append(Spacer(1, 6))
+    elements.append(Spacer(1, 15))
     
     # Title with number and date
     elements.append(Paragraph(f"<b>FICHE DE RÉPARATION N° {reparation['numero']}</b>", section_style))
@@ -729,7 +729,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(client_table)
-    elements.append(Spacer(1, 5))
+    elements.append(Spacer(1, 10))
     
     # Matériel fourni
     materiel_list = get_materiel_fourni_list(
@@ -739,14 +739,14 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     if materiel_list:
         elements.append(Paragraph("<b>MATÉRIEL FOURNI</b>", section_style))
         elements.append(Paragraph(", ".join(materiel_list), normal_style))
-        elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 10))
 
     # Forfaits appliqués
     forfaits_labels = format_forfaits_list(reparation.get('forfaits'))
     if forfaits_labels:
         elements.append(Paragraph("<b>FORFAITS / OPTIONS</b>", section_style))
         elements.append(Paragraph(", ".join(forfaits_labels), normal_style))
-        elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 10))
 
     # État du matériel à la prise en charge (protection juridique)
     numero_serie = reparation.get('numero_serie') or ''
@@ -757,7 +757,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
             elements.append(Paragraph(f"<b>N° de série :</b> {numero_serie}", normal_style))
         if etat_depot:
             elements.append(Paragraph(f"<b>Observations :</b> {etat_depot}", normal_style))
-        elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 10))
 
     # Description
     elements.append(Paragraph("<b>DESCRIPTION DE LA PANNE</b>", section_style))
@@ -767,7 +767,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
         elements.append(Spacer(1, 5))
         elements.append(Paragraph("<b>Observations du client:</b>", normal_style))
         elements.append(Paragraph(reparation.get('observations_client', ''), normal_style))
-    elements.append(Spacer(1, 4))
+    elements.append(Spacer(1, 10))
     
     # Diagnostic et action
     if reparation.get('diagnostic') or reparation.get('action_realisee'):
@@ -776,7 +776,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
             elements.append(Paragraph(f"<b>Diagnostic:</b> {reparation.get('diagnostic')}", normal_style))
         if reparation.get('action_realisee'):
             elements.append(Paragraph(f"<b>Action réalisée:</b> {reparation.get('action_realisee')}", normal_style))
-        elements.append(Spacer(1, 4))
+        elements.append(Spacer(1, 10))
     
     # Prix et statut
     elements.append(Paragraph("<b>STATUT ET TARIF</b>", section_style))
@@ -793,7 +793,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(status_table)
-    elements.append(Spacer(1, 6))
+    elements.append(Spacer(1, 15))
     
     # QR Code for tracking
     if tracking_url:
@@ -805,11 +805,9 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
         qr_bytes = generate_qr_code(tracking_url)
         qr_img = Image(io.BytesIO(qr_bytes), width=2.5*cm, height=2.5*cm)
         elements.append(qr_img)
-        elements.append(Spacer(1, 5))
+        elements.append(Spacer(1, 10))
     
     # Conditions de réparation
-    from reportlab.platypus import PageBreak
-    elements.append(PageBreak())
     elements.append(Paragraph("<b>CONDITIONS DE RÉPARATION</b>", section_style))
     elements.append(Paragraph("<b>Prise en charge du matériel :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["prise_en_charge"], condition_text))
@@ -838,7 +836,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
     elements.append(Paragraph("<b>Acceptation :</b>", condition_title))
     elements.append(Paragraph(CONDITIONS_REPARATION["acceptation"], condition_text))
     
-    elements.append(Spacer(1, 6))
+    elements.append(Spacer(1, 15))
     # Bloc signature
     if reparation.get("signature_b64"):
         signataire = reparation.get("nom_signataire") or f"{client.get('prenom','')} {client.get('nom','')}".strip()
@@ -860,7 +858,7 @@ def generate_client_pdf(reparation: dict, client: dict, tracking_url: str = None
                 raw = raw.split(",", 1)[1]
             sig_bytes = base64.b64decode(raw)
             # Signature triplée : 15cm × 6cm (était 5cm × 2cm)
-            sig_img = Image(io.BytesIO(sig_bytes), width=8 * cm, height=3 * cm)
+            sig_img = Image(io.BytesIO(sig_bytes), width=15 * cm, height=6 * cm)
             elements.append(sig_img)
         except Exception as exc:
             logger.error(f"Failed to embed signature: {exc}")
