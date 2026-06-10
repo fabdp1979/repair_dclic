@@ -1019,7 +1019,16 @@ export default function ReparationsPage() {
           </DialogHeader>
           <form onSubmit={handleCreateClient}>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-societe">Société (optionnel)</Label>
+                <Input
+                  id="new-societe"
+                  value={clientFormData.societe || ""}
+                  onChange={(e) => setClientFormData({...clientFormData, societe: e.target.value})}
+                  placeholder="Nom de la société"
+                />
+              </div>
+            <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="new-prenom">Prénom *</Label>
                   <Input

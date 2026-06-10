@@ -327,7 +327,16 @@ export default function ClientsPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="prenom">Prénom *</Label>
+                  <Label htmlFor="societe">Société (optionnel)</Label>
+                <Input
+                  id="societe"
+                  value={formData.societe || ""}
+                  onChange={(e) => setFormData({...formData, societe: e.target.value})}
+                  placeholder="Nom de la société"
+                />
+              </div>
+              <div>
+                <Label htmlFor="prenom">Prénom *</Label>
                   <Input
                     id="prenom"
                     value={formData.prenom}
