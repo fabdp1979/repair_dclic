@@ -176,7 +176,7 @@ export default function ClientCombobox({ clients, value, onChange, onCreateNew }
                   >
                     <span className="flex-1 min-w-0">
                       <div className="font-medium text-slate-900 truncate">
-                        {c.prenom} {c.nom}
+                        {c.societe ? <span className="text-[#84CC16]">{c.societe} — </span> : null}{c.prenom} {c.nom}
                       </div>
                       <div className="text-xs text-slate-500 truncate">
                         {c.telephone || "—"}

@@ -14,7 +14,7 @@ const api = axios.create({
 export const getDashboardStats = () => api.get('/dashboard/stats');
 
 // Clients
-export const getClients = (search = '', limit = 100) => 
+export const getClients = (search = '', limit = 3000) => 
   api.get('/clients', { params: { search: search || undefined, limit } });
 
 export const getClient = (id) => api.get(`/clients/${id}`);
@@ -93,6 +93,9 @@ export const annulerEncaissementReparation = (id) =>
 // Email
 export const sendRepairEmail = (id, force = false) =>
   api.post(`/reparations/${id}/send-email`, null, { params: { force } });
+
+export const sendRepairSms = (id) =>
+  api.post(`/reparations/${id}/send-sms`);
 
 // Signature client
 export const getReparationPublic = (id) => api.get(`/reparations/${id}/public`);

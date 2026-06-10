@@ -21,6 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getCommandes, createCommande, updateCommande, deleteCommande, getClients, purgeCompletedCommandes
 } from "../lib/api";
+import ClientCombobox from "../components/ClientCombobox";
 import { toast } from "sonner";
 
 const STATUTS_COMMANDE = [
@@ -55,6 +56,9 @@ export default function CommandesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCommande, setSelectedCommande] = useState(null);
+  const [clientDialogOpen, setClientDialogOpen] = useState(false);
+  const emptyClient = { nom: "", prenom: "", societe: "", telephone: "", telephone2: "", email: "", adresse: "" };
+  const [clientFormData, setClientFormData] = useState(emptyClient);
   const [formData, setFormData] = useState(emptyCommande);
   const [saving, setSaving] = useState(false);
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
@@ -159,6 +163,23 @@ export default function CommandesPage() {
       toast.error("Erreur lors de l'enregistrement");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (!clientFormData.nom || !clientFormData.prenom || !clientFormData.telephone) {
+      return;
+    }
+    try {
+      const payload = { ...clientFormData, telephone2: clientFormData.telephone2 || null, email: clientFormData.email || null };
+      const response = await createClient(payload);
+      setClients([...clients, response.data]);
+      setFormData({ ...formData, client_id: response.data.id });
+      setClientDialogOpen(false);
+      setClientFormData(emptyClient);
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -403,21 +424,12 @@ export default function CommandesPage() {
             <div className="grid gap-4 py-4">
               <div>
                 <Label>Client *</Label>
-                <Select
+                <ClientCombobox
+                  clients={clients}
                   value={formData.client_id}
-                  onValueChange={(value) => setFormData({...formData, client_id: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.prenom} {client.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(id) => setFormData({...formData, client_id: id})}
+                  onCreateNew={() => setClientDialogOpen(true)}
+                />
               </div>
 
               <div>
@@ -556,6 +568,50 @@ export default function CommandesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle>Nouveau client rapide</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateClient}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Prénom *</Label>
+                  <input className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" value={clientFormData.prenom} onChange={(e) => setClientFormData({...clientFormData, prenom: e.target.value})} required />
+                </div>
+                <div>
+                  <Label>Nom *</Label>
+                  <input className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" value={clientFormData.nom} onChange={(e) => setClientFormData({...clientFormData, nom: e.target.value})} required />
+                </div>
+              </div>
+              <div>
+                <Label>Société (optionnel)</Label>
+                <input className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Nom de la société" value={clientFormData.societe || ""} onChange={(e) => setClientFormData({...clientFormData, societe: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Téléphone *</Label>
+                  <input className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" value={clientFormData.telephone} onChange={(e) => setClientFormData({...clientFormData, telephone: e.target.value})} required />
+                </div>
+                <div>
+                  <Label>Téléphone 2</Label>
+                  <input className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" value={clientFormData.telephone2} onChange={(e) => setClientFormData({...clientFormData, telephone2: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <Label>Email</Label>
+                <input type="email" className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm" value={clientFormData.email} onChange={(e) => setClientFormData({...clientFormData, email: e.target.value})} />
+              </div>
+            </div>
+            <DialogFooter>
+              <button type="button" onClick={() => setClientDialogOpen(false)} className="px-4 py-2 rounded-md border border-slate-200 text-sm hover:bg-slate-50">Annuler</button>
+              <button type="submit" className="px-4 py-2 rounded-md bg-[#84CC16] text-white text-sm hover:bg-[#65A30D]">Créer et sélectionner</button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

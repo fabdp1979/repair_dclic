@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "../components/ui/select";
 import { getEncaissements, createEncaissement, deleteEncaissement, getClients } from "../lib/api";
+import ClientCombobox from "../components/ClientCombobox";
 import { toast } from "sonner";
 
 // Types de recette EXACTS demandés par le client
@@ -593,24 +594,11 @@ export default function EncaissementPage() {
 
               <div>
                 <Label>Client (optionnel)</Label>
-                <Select
-                  value={formData.client_id || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, client_id: value === "none" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucun</SelectItem>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.prenom} {c.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ClientCombobox
+                            clients={clients}
+                            value={formData.client_id || ""}
+                            onChange={(id) => setFormData({...formData, client_id: id})}
+                          />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

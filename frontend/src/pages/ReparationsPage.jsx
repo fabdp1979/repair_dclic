@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { 
   getReparations, createReparation, updateReparation, deleteReparation,
   getClients, createClient, getClientPdfUrl, getInternalPdfUrl, getCompteRenduPdfUrl, getEtiquettePdfUrl,
-  sendRepairEmail, exportReparationsExcelUrl, downloadFile
+  sendRepairEmail, sendRepairSms, exportReparationsExcelUrl, downloadFile
 } from "../lib/api";
 import { formatDateFR } from "../lib/date";
 import { detectAuto } from "../hooks/useDeviceMode";
@@ -118,6 +118,7 @@ export default function ReparationsPage() {
   const [clientFormData, setClientFormData] = useState(emptyClient);
   const [saving, setSaving] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(null);
+  const [sendingSms, setSendingSms] = useState(null);
   const [forceEmailDialog, setForceEmailDialog] = useState({ open: false, reparation: null });
   const isIpadDevice = detectAuto() === "ipad";
 
@@ -276,6 +277,22 @@ export default function ReparationsPage() {
     } catch (error) {
       toast.error("Erreur lors de la mise à jour");
       console.error(error);
+    }
+  };
+
+  const handleSendSms = async (reparation) => {
+    if (!reparation.client_telephone) {
+      toast.error("Ce client n'a pas de numéro de téléphone");
+      return;
+    }
+    setSendingSms(reparation.id);
+    try {
+      await sendRepairSms(reparation.id);
+      toast.success(`SMS envoyé à ${reparation.client_telephone}`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Erreur lors de l'envoi du SMS");
+    } finally {
+      setSendingSms(null);
     }
   };
 
@@ -470,7 +487,7 @@ export default function ReparationsPage() {
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                         <div>
                           <p className="text-slate-500 text-xs">Client</p>
                           <p className="font-medium text-slate-900">
@@ -653,6 +670,17 @@ export default function ReparationsPage() {
                       >
                         <Send className="w-4 h-4 mr-1" />
                         Email
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 border-green-200 hover:bg-green-50"
+                        onClick={() => handleSendSms(reparation)}
+                        disabled={sendingSms === reparation.id || !reparation.client_telephone}
+                      >
+                        <Send className="w-4 h-4 mr-1" />
+                        SMS
                       </Button>
                       
                       <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(reparation)}>
