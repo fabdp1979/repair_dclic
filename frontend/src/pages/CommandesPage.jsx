@@ -475,13 +475,19 @@ export default function CommandesPage() {
                 </div>
                 <div>
                   <Label htmlFor="prix_achat">Prix achat (€)</Label>
-                  <Input
-                    id="prix_achat"
-                    type="number"
-                    step="0.01"
-                    value={formData.prix_achat}
-                    onChange={(e) => setFormData({...formData, prix_achat: e.target.value})}
-                  />
+                <div className="flex gap-2">
+                    <Input
+                      id="prix_achat"
+                      type="number"
+                      step="0.01"
+                      value={formData.prix_achat}
+                      onChange={(e) => setFormData({...formData, prix_achat: e.target.value})}
+                    />
+                  <select value={formData.prix_achat_tva || "TTC"} onChange={(e) => setFormData({...formData, prix_achat_tva: e.target.value})} className="h-10 rounded-md border border-slate-200 bg-white px-2 text-sm">
+                    <option value="TTC">TTC</option>
+                    <option value="HT">HT</option>
+                  </select>
+                </div>
                 </div>
                 <div>
                   <Label htmlFor="prix_vente">Prix vente (€)</Label>

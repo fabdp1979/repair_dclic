@@ -257,7 +257,7 @@ export default function SignaturePage() {
         </section>
 
         {/* 2. Case à cocher obligatoire */}
-        <section className="bg-white rounded-xl border-2 border-[#84CC16] shadow-sm p-6">
+        <section className={`rounded-xl border-4 shadow-md p-6 transition-all ${accepted ? "bg-green-50 border-[#84CC16]" : "bg-orange-50 border-orange-400"}`}>
           <label className="flex items-start gap-4 cursor-pointer">
             <Checkbox
               checked={accepted}
